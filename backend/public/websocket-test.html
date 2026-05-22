@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <!-- Pusher JS (Required for Laravel Echo) -->
+    <script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+    <script>
+        // Log Pusher to console for debugging
+        Pusher.logToConsole = true;
+
+        // Initialize Pusher/Reverb client
+        var pusher = new Pusher('info-clash-key', {
+            wsHost: 'localhost',
+            wsPort: 8080,
+            forceTLS: false,
+            enableStats: false,
+            enabledTransports: ['ws', 'wss'],
+            cluster: 'mt1'
+        });
+
+        // Subscribe to test channel
+        var channel = pusher.subscribe('test-channel');
+        channel.bind('App\\Events\\PingEvent', function(data) {
+            console.log("EVENT RECEIVED:", data);
+            
+            // Display on screen
+            const logDiv = document.getElementById('log');
+            const p = document.createElement('p');
+            p.textContent = `[${new Date().toLocaleTimeString()}] ` + data.message;
+            logDiv.appendChild(p);
+        });
+    </script>
+    <style>
+        body { font-family: monospace; background: #1e1e1e; color: #fff; padding: 20px; }
+        #log { background: #000; padding: 10px; border-radius: 5px; margin-top: 20px; min-height: 200px; }
+        button { padding: 10px 20px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>INFO-CLASH WebSocket Test</h1>
+    <p>Buka <b>Developer Tools (F12) -> Console</b> untuk melihat log koneksi.</p>
+    <button onclick="triggerPing()">Test Ping /api/ping</button>
+
+    <div id="log">
+        <p><i>Waiting for events...</i></p>
+    </div>
+
+    <script>
+        function triggerPing() {
+            fetch('http://localhost:8000/api/ping')
+                .then(response => response.json())
+                .then(data => console.log('Ping Triggered:', data))
+                .catch(err => console.error('Error triggering ping:', err));
+        }
+    </script>
+</body>
+</html>
