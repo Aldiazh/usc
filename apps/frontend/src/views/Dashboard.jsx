@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
 import api from '../lib/api';
+import { cachedGet, clearApiCache, SHORT_CACHE_TTL } from '../lib/apiCache';
+import { prefetchAdminRoutes, prefetchRoute } from '../lib/routePrefetch';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -10,11 +12,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboard();
+    prefetchAdminRoutes();
   }, []);
 
   const fetchDashboard = async () => {
     try {
-      const res = await api.get('/admin/dashboard');
+      const res = await cachedGet('/admin/dashboard', {}, SHORT_CACHE_TTL);
       setStats(res.data);
     } catch (err) {
       toast.error('Failed to load dashboard data');
@@ -29,6 +32,7 @@ export default function Dashboard() {
     try {
       const res = await api.post('/admin/events', { title });
       toast.success(`Event created! PIN: ${res.data.pin}`);
+      clearApiCache('/admin/dashboard');
       fetchDashboard();
     } catch (err) {
       toast.error('Failed to create event');
@@ -75,6 +79,8 @@ export default function Dashboard() {
         <div className="w-full md:w-auto flex flex-col sm:flex-row gap-3">
           <button 
             onClick={() => navigate('/admin/questions')}
+            onFocus={() => prefetchRoute('questions')}
+            onMouseEnter={() => prefetchRoute('questions')}
             className="w-full sm:w-auto bg-[#1a1a1c] hover:bg-[#2a2a2b] border border-[#353436] hover:border-[#4a4456] text-white px-6 py-4 rounded font-bold text-lg md:text-xl tracking-wide flex items-center justify-center gap-3 transition-colors active:scale-95 shadow-sm group"
           >
             <span className="material-symbols-outlined text-[#ffc703] group-hover:-translate-y-1 transition-transform">upload_file</span>
@@ -164,6 +170,8 @@ export default function Dashboard() {
                 </div>
                 <button 
                   onClick={() => navigate(`/admin/events/${event.id}`)}
+                  onFocus={() => prefetchRoute('gameControl')}
+                  onMouseEnter={() => prefetchRoute('gameControl')}
                   className="w-full md:w-auto bg-[#2a2a2b] hover:bg-[#353436] text-white px-6 py-3 rounded text-sm font-bold tracking-wider transition-colors border border-[#4a4456]"
                 >
                   MANAGE

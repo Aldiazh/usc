@@ -4,18 +4,23 @@ namespace App\Services;
 
 use App\Models\Event;
 use App\Models\Participant;
+use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 
 class ParticipantService
 {
     /**
      * Join an event by PIN code.
+     * Uses authenticated user data for participant info.
+     * Blocks users who have been eliminated in any event.
      */
-    public function joinByPin(string $pin, array $playerData): Participant
+    public function joinByPin(string $pin, User $user): Participant
     {
-        return DB::transaction(function () use ($pin, $playerData) {
+        return DB::transaction(function () use ($pin, $user) {
             $event = Event::query()
                 ->where('pin', $pin)
                 ->whereIn('status', ['lobby', 'live'])
@@ -28,15 +33,46 @@ class ParticipantService
                 ]);
             }
 
-            return Participant::create([
+            // Check if user already joined this event
+            $existing = Participant::where('event_id', $event->id)
+                ->where('user_id', $user->id)
+                ->first();
+
+            if ($existing) {
+                // If eliminated in this event, block rejoin
+                if ($existing->isEliminated()) {
+                    throw ValidationException::withMessages([
+                        'pin' => ['Anda telah tereliminasi dari event ini dan tidak dapat bergabung kembali.'],
+                    ]);
+                }
+                // Otherwise return existing participant
+                return $existing;
+            }
+
+            // Check if user was eliminated in ANY previous event
+            $wasEliminated = Participant::where('user_id', $user->id)
+                ->where('status', 'eliminated')
+                ->exists();
+
+            if ($wasEliminated) {
+                throw ValidationException::withMessages([
+                    'pin' => ['Anda telah tereliminasi di event sebelumnya dan tidak dapat mengikuti event selanjutnya.'],
+                ]);
+            }
+
+            $participant = Participant::create([
                 'event_id' => $event->id,
-                'nickname' => $playerData['nickname'],
-                'team_name' => $playerData['team_name'] ?? null,
-                'institution' => $playerData['institution'],
+                'user_id' => $user->id,
+                'nickname' => $user->name,
+                'institution' => $user->institution ?? '-',
                 'status' => 'waiting',
                 'role' => 'player',
                 'joined_at' => now(),
             ]);
+
+            Cache::forget('dashboard_stats');
+
+            return $participant;
         });
     }
 
@@ -45,9 +81,13 @@ class ParticipantService
      */
     public function getByEvent(string $eventId)
     {
-        return Participant::where('event_id', $eventId)
-            ->orderBy('total_score', 'desc')
-            ->get();
+        return $this->baseEventQuery($eventId)->get();
+    }
+
+    public function paginateByEvent(string $eventId, int $perPage = 30): LengthAwarePaginator
+    {
+        return $this->baseEventQuery($eventId)
+            ->paginate($this->boundedPerPage($perPage));
     }
 
     /**
@@ -55,14 +95,46 @@ class ParticipantService
      */
     public function getRanking(string $eventId): Collection
     {
-        return Participant::where('event_id', $eventId)
-            ->where('role', 'player')
-            ->orderBy('total_score', 'desc')
+        return $this->baseRankingQuery($eventId)
             ->get()
             ->map(function ($participant, $index) {
                 $participant->setAttribute('current_rank', $index + 1);
                 return $participant;
             });
+    }
+
+    public function paginateRanking(string $eventId, int $perPage = 50): LengthAwarePaginator
+    {
+        $ranking = $this->baseRankingQuery($eventId)
+            ->paginate($this->boundedPerPage($perPage));
+
+        $firstRank = $ranking->firstItem() ?? 1;
+        $ranking->getCollection()->transform(function ($participant, $index) use ($firstRank) {
+            $participant->setAttribute('current_rank', $firstRank + $index);
+            return $participant;
+        });
+
+        return $ranking;
+    }
+
+    private function baseEventQuery(string $eventId)
+    {
+        return Participant::where('event_id', $eventId)
+            ->orderBy('total_score', 'desc')
+            ->orderBy('joined_at');
+    }
+
+    private function baseRankingQuery(string $eventId)
+    {
+        return Participant::where('event_id', $eventId)
+            ->where('role', 'player')
+            ->orderBy('total_score', 'desc')
+            ->orderBy('joined_at');
+    }
+
+    private function boundedPerPage(int $perPage): int
+    {
+        return max(1, min($perPage, 100));
     }
 
     /**
@@ -71,6 +143,7 @@ class ParticipantService
     public function kick(Participant $participant): void
     {
         $participant->delete();
+        Cache::forget('dashboard_stats');
     }
 
     /**

@@ -16,7 +16,6 @@ class JoinEventRequest extends FormRequest
         return [
             'pin' => 'required|string|size:6',
             'nickname' => 'required|string|max:50',
-            'team_name' => 'nullable|string|max:100',
             'institution' => 'required|string|max:100',
         ];
     }

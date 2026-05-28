@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { toast, Toaster } from 'sonner';
-import api from '../lib/api';
+import { cachedGet, SHORT_CACHE_TTL } from '../lib/apiCache';
+
+const RANKING_PER_PAGE = 50;
 
 const podiumConfig = [
   { rank: 2, order: 'md:order-1', height: '', border: 'border-[#d0bcff]', color: 'text-[#d0bcff]', icon: 'workspace_premium', badge: null, textSize: 'text-[50px] md:text-[80px]', nameSize: 'text-xl md:text-3xl', ptSize: 'text-lg md:text-xl', shadow: 'shadow-[0_10px_30px_rgba(0,0,0,0.5)]' },
@@ -14,7 +16,9 @@ export default function GlobalRanking() {
   const [events, setEvents] = useState([]);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [ranking, setRanking] = useState([]);
+  const [rankingPagination, setRankingPagination] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   useEffect(() => {
     fetchEvents();
@@ -22,12 +26,12 @@ export default function GlobalRanking() {
 
   const fetchEvents = async () => {
     try {
-      const res = await api.get('/admin/events');
+      const res = await cachedGet('/admin/events', {}, SHORT_CACHE_TTL);
       const evts = res.data || [];
       setEvents(evts);
       if (evts.length > 0) {
         setSelectedEvent(evts[0].id);
-        fetchRanking(evts[0].id);
+        fetchRanking(evts[0].id, 1);
       } else {
         setIsLoading(false);
       }
@@ -37,22 +41,36 @@ export default function GlobalRanking() {
     }
   };
 
-  const fetchRanking = async (eventId) => {
-    setIsLoading(true);
+  const fetchRanking = async (eventId, nextPage = 1, append = false) => {
+    if (append) {
+      setIsLoadingMore(true);
+    } else {
+      setIsLoading(true);
+    }
+
     try {
-      const res = await api.get(`/admin/events/${eventId}/ranking`);
-      setRanking(res.data || []);
+      const res = await cachedGet(`/admin/events/${eventId}/ranking`, {
+        params: { paginated: 1, page: nextPage, per_page: RANKING_PER_PAGE },
+      }, SHORT_CACHE_TTL);
+      const players = res.data.data || [];
+      setRanking((current) => append ? [...current, ...players] : players);
+      setRankingPagination({
+        current_page: res.data.current_page,
+        last_page: res.data.last_page,
+        total: res.data.total,
+      });
     } catch {
       toast.error('Failed to load ranking');
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   };
 
   const handleEventChange = (e) => {
     const id = e.target.value;
     setSelectedEvent(id);
-    fetchRanking(id);
+    fetchRanking(id, 1);
   };
 
   const topThree = ranking.slice(0, 3);
@@ -133,7 +151,7 @@ export default function GlobalRanking() {
               <div className="flex flex-col gap-2 md:gap-3">
                 {rest.map((player, i) => (
                   <div key={player.id} className="flex items-center px-4 md:px-8 py-3 md:py-5 bg-[#1a1a1c] rounded-lg border border-[#2a2a2b] hover:border-[#4a4456] transition-colors">
-                    <div className="w-12 md:w-24 text-center text-2xl md:text-4xl font-black font-display-lg text-[#353436]">{i + 4}</div>
+                    <div className="w-12 md:w-24 text-center text-2xl md:text-4xl font-black font-display-lg text-[#353436]">{player.current_rank ?? i + 4}</div>
                     <div className="flex-1 pl-2 md:pl-4 flex items-center gap-2 md:gap-4">
                       <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-[#2a2a2b] flex items-center justify-center text-gray-400 shrink-0">
                         <span className="material-symbols-outlined text-[16px] md:text-[20px]">{playerIcons[i % playerIcons.length]}</span>
@@ -151,6 +169,18 @@ export default function GlobalRanking() {
                   </div>
                 ))}
               </div>
+              {rankingPagination && rankingPagination.current_page < rankingPagination.last_page && (
+                <div className="flex justify-center mt-5">
+                  <button
+                    type="button"
+                    onClick={() => fetchRanking(selectedEvent, rankingPagination.current_page + 1, true)}
+                    disabled={isLoadingMore}
+                    className="border border-[#353436] hover:border-[#7a33ff] bg-[#1a1a1c] hover:bg-[#2a2a2b] disabled:opacity-50 text-gray-300 hover:text-white rounded px-5 py-3 text-sm font-bold tracking-wider transition-colors"
+                  >
+                    {isLoadingMore ? 'LOADING...' : 'LOAD MORE RANKINGS'}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </>

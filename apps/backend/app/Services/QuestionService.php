@@ -7,8 +7,11 @@ use App\Support\QuestionPayload;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Cache;
 
 class QuestionService
 {
@@ -36,12 +39,19 @@ class QuestionService
     {
         $data['user_id'] = Auth::id();
 
-        return Question::create($data);
+        $question = Question::create($data);
+
+        Cache::forget('question_stats');
+        Cache::forget('dashboard_stats');
+
+        return $question;
     }
 
     public function update(Question $question, array $data): Question
     {
         $question->update($data);
+
+        Cache::forget('question_stats');
 
         return $question->fresh();
     }
@@ -49,6 +59,8 @@ class QuestionService
     public function delete(Question $question): void
     {
         $question->delete();
+        Cache::forget('question_stats');
+        Cache::forget('dashboard_stats');
     }
 
     /**
@@ -77,35 +89,65 @@ class QuestionService
             ]);
         }
 
-        DB::transaction(function () use ($validatedPayloads) {
-            foreach ($validatedPayloads as $payload) {
-                Question::create($payload);
+        $now = now();
+
+        DB::transaction(function () use ($validatedPayloads, $now) {
+            $records = array_map(function ($payload) use ($now) {
+                // Encode options array to JSON for batch insert
+                if (isset($payload['options']) && is_array($payload['options'])) {
+                    $payload['options'] = json_encode($payload['options']);
+                }
+                $payload['id'] = (string) Str::uuid();
+                $payload['created_at'] = $now;
+                $payload['updated_at'] = $now;
+                return $payload;
+            }, $validatedPayloads);
+
+            // Insert in chunks of 100 to avoid query size limits
+            foreach (array_chunk($records, 100) as $chunk) {
+                Question::insert($chunk);
             }
         });
+
+        Cache::forget('question_stats');
+        Cache::forget('dashboard_stats');
 
         return count($validatedPayloads);
     }
 
     public function getStats(): array
     {
-        return [
-            'total' => Question::count(),
-            'by_difficulty' => [
-                'easy' => Question::where('difficulty', 'easy')->count(),
-                'medium' => Question::where('difficulty', 'medium')->count(),
-                'hard' => Question::where('difficulty', 'hard')->count(),
-            ],
-            'by_type' => [
-                'multiple_choice' => Question::where('type', 'multiple_choice')->count(),
-                'short_answer' => Question::where('type', 'short_answer')->count(),
-                'code_snippet' => Question::where('type', 'code_snippet')->count(),
-                'essay' => Question::where('type', 'essay')->count(),
-            ],
-            'topics' => Question::select('topic')
-                ->selectRaw('count(*) as count')
-                ->groupBy('topic')
-                ->pluck('count', 'topic'),
-        ];
+        return Cache::remember('question_stats', 300, function () {
+            $stats = Question::query()
+                ->selectRaw('COUNT(*) as total')
+                ->selectRaw("COUNT(CASE WHEN difficulty = 'easy' THEN 1 END) as easy")
+                ->selectRaw("COUNT(CASE WHEN difficulty = 'medium' THEN 1 END) as medium")
+                ->selectRaw("COUNT(CASE WHEN difficulty = 'hard' THEN 1 END) as hard")
+                ->selectRaw("COUNT(CASE WHEN type = 'multiple_choice' THEN 1 END) as multiple_choice")
+                ->selectRaw("COUNT(CASE WHEN type = 'short_answer' THEN 1 END) as short_answer")
+                ->selectRaw("COUNT(CASE WHEN type = 'code_snippet' THEN 1 END) as code_snippet")
+                ->selectRaw("COUNT(CASE WHEN type = 'essay' THEN 1 END) as essay")
+                ->first();
+
+            return [
+                'total' => (int) $stats->total,
+                'by_difficulty' => [
+                    'easy' => (int) $stats->easy,
+                    'medium' => (int) $stats->medium,
+                    'hard' => (int) $stats->hard,
+                ],
+                'by_type' => [
+                    'multiple_choice' => (int) $stats->multiple_choice,
+                    'short_answer' => (int) $stats->short_answer,
+                    'code_snippet' => (int) $stats->code_snippet,
+                    'essay' => (int) $stats->essay,
+                ],
+                'topics' => Question::select('topic')
+                    ->selectRaw('count(*) as count')
+                    ->groupBy('topic')
+                    ->pluck('count', 'topic'),
+            ];
+        });
     }
 
     private function normalizeImportedQuestionPayload(array $payload): array

@@ -11,6 +11,7 @@ export default function Layout() {
   const navItems = [
     { id: '', path: '/admin', label: 'Dashboard', icon: 'grid_view' },
     { id: 'questions', path: '/admin/questions', label: 'Question Bank', icon: 'help_center' },
+    { id: 'users', path: '/admin/users', label: 'Users', icon: 'group' },
     { id: 'ranking', path: '/admin/ranking', label: 'Global Ranking', icon: 'play_circle' },
     { id: 'analytics', path: '/admin/analytics', label: 'Analytics', icon: 'bar_chart' },
   ];

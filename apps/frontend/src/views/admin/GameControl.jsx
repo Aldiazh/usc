@@ -1,8 +1,13 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { Suspense, useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast, Toaster } from 'sonner';
 import api from '../../lib/api';
+import { cachedGet, clearApiCache, SHORT_CACHE_TTL } from '../../lib/apiCache';
 import { getEcho } from '../../lib/echo';
+
+const SelectQuestionsModal = React.lazy(() => import('../../components/SelectQuestionsModal'));
+
+const PARTICIPANTS_PER_PAGE = 30;
 
 export default function GameControl() {
   const { eventId } = useParams();
@@ -11,15 +16,24 @@ export default function GameControl() {
   const [event, setEvent] = useState(null);
   const [stats, setStats] = useState(null);
   const [participants, setParticipants] = useState([]);
+  const [participantsPagination, setParticipantsPagination] = useState(null);
+  const [isLoadingMoreParticipants, setIsLoadingMoreParticipants] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null); // track which button is loading
+  const [showSelectModal, setShowSelectModal] = useState(false);
 
   // Fetch initial data
   useEffect(() => {
     fetchEventData();
+  }, [eventId]);
+
+  // Only poll live stats when game is actively running
+  useEffect(() => {
+    if (!event || event.status !== 'live') return;
+    fetchLiveStats(); // Fetch once immediately
     const interval = setInterval(fetchLiveStats, 3000);
     return () => clearInterval(interval);
-  }, [eventId]);
+  }, [eventId, event?.status]);
 
   // Listen for lobby updates
   useEffect(() => {
@@ -37,15 +51,44 @@ export default function GameControl() {
   const fetchEventData = async () => {
     try {
       const [eventRes, participantsRes] = await Promise.all([
-        api.get(`/admin/events/${eventId}`),
-        api.get(`/admin/events/${eventId}/participants`),
+        cachedGet(`/admin/events/${eventId}`, {}, SHORT_CACHE_TTL),
+        api.get(`/admin/events/${eventId}/participants`, {
+          params: { paginated: 1, page: 1, per_page: PARTICIPANTS_PER_PAGE },
+        }),
       ]);
       setEvent(eventRes.data);
-      setParticipants(participantsRes.data);
+      setParticipants(participantsRes.data.data || []);
+      setParticipantsPagination({
+        current_page: participantsRes.data.current_page,
+        last_page: participantsRes.data.last_page,
+        total: participantsRes.data.total,
+      });
     } catch (err) {
       toast.error('Failed to load event data');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadMoreParticipants = async () => {
+    if (!participantsPagination || participantsPagination.current_page >= participantsPagination.last_page) return;
+
+    const nextPage = participantsPagination.current_page + 1;
+    setIsLoadingMoreParticipants(true);
+    try {
+      const res = await api.get(`/admin/events/${eventId}/participants`, {
+        params: { paginated: 1, page: nextPage, per_page: PARTICIPANTS_PER_PAGE },
+      });
+      setParticipants((current) => [...current, ...(res.data.data || [])]);
+      setParticipantsPagination({
+        current_page: res.data.current_page,
+        last_page: res.data.last_page,
+        total: res.data.total,
+      });
+    } catch {
+      toast.error('Failed to load more participants');
+    } finally {
+      setIsLoadingMoreParticipants(false);
     }
   };
 
@@ -68,6 +111,7 @@ export default function GameControl() {
       const ep = endpoints[action];
       const res = await api[ep.method](ep.url);
       toast.success(res.data.message || `${label} successful`);
+      clearApiCache(`/admin/events/${eventId}`);
       fetchEventData();
       fetchLiveStats();
     } catch (err) {
@@ -86,6 +130,7 @@ export default function GameControl() {
         survival_count: parseInt(count),
       });
       toast.success(res.data.message);
+      clearApiCache(`/admin/events/${eventId}`);
       fetchEventData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Elimination failed');
@@ -109,8 +154,8 @@ export default function GameControl() {
   const isLive = event?.status === 'live';
   const isLobby = event?.status === 'lobby' || event?.status === 'draft';
   const isFinished = event?.status === 'finished';
-  const onlinePlayers = participants.filter(p => p.is_online).length;
-  const totalPlayers = participants.length;
+  const onlinePlayers = stats?.online_count ?? participants.filter(p => p.is_online).length;
+  const totalPlayers = stats?.total_participants ?? participantsPagination?.total ?? event?.participants_count ?? participants.length;
   const activePlayers = participants.filter(p => p.status !== 'eliminated').length;
 
   return (
@@ -140,9 +185,18 @@ export default function GameControl() {
             <span className="text-sm text-gray-500 font-bold font-mono">PIN: {event?.pin}</span>
           </div>
         </div>
-        
+
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2">
+          {isLobby && (
+            <button
+              onClick={() => setShowSelectModal(true)}
+              className="bg-[#1a1a1c] hover:bg-[#2a2a2b] border border-[#353436] hover:border-[#4a4456] text-white px-5 py-3 rounded font-bold tracking-wider flex items-center gap-2 transition-colors"
+            >
+              <span className="material-symbols-outlined">library_add</span>
+              Manage Questions
+            </button>
+          )}
           {(isLobby) && (
             <button 
               onClick={() => handleAction('start', 'Start Game')}
@@ -155,7 +209,7 @@ export default function GameControl() {
           )}
           {isLive && (
             <>
-              <button 
+              <button
                 onClick={() => handleAction('next', 'Next Question')}
                 disabled={!!actionLoading}
                 className="bg-[#7a33ff] hover:bg-[#6a1ceb] disabled:bg-[#4a2090] text-white px-5 py-3 rounded font-bold tracking-wider flex items-center gap-2 transition-colors"
@@ -163,7 +217,7 @@ export default function GameControl() {
                 <span className="material-symbols-outlined">skip_next</span>
                 {actionLoading === 'next' ? '...' : 'Next'}
               </button>
-              <button 
+              <button
                 onClick={() => handleAction('endQuestion', 'End Question')}
                 disabled={!!actionLoading}
                 className="bg-[#2a2a2b] hover:bg-[#353436] text-white px-5 py-3 rounded font-bold tracking-wider flex items-center gap-2 transition-colors border border-[#4a4456]"
@@ -171,7 +225,7 @@ export default function GameControl() {
                 <span className="material-symbols-outlined">timer_off</span>
                 End Q
               </button>
-              <button 
+              <button
                 onClick={handleEliminate}
                 disabled={!!actionLoading}
                 className="bg-orange-700 hover:bg-orange-800 text-white px-5 py-3 rounded font-bold tracking-wider flex items-center gap-2 transition-colors"
@@ -249,11 +303,45 @@ export default function GameControl() {
         </div>
       )}
 
+      {/* Questions List (if not started yet) */}
+      {isLobby && event?.questions && (
+        <div className="border border-[#2a2a2b] bg-[#1a1a1c] rounded-lg p-5">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold tracking-widest text-gray-400 uppercase">Attached Questions ({event.questions.length})</h3>
+          </div>
+          {event.questions.length === 0 ? (
+            <div className="text-center py-6 text-gray-500 bg-[#131314] rounded border border-[#2a2a2b]">
+              <p className="text-sm font-medium">No questions attached yet.</p>
+              <button
+                onClick={() => setShowSelectModal(true)}
+                className="mt-2 text-[#ffc703] hover:text-white font-bold text-sm tracking-wider uppercase underline underline-offset-4"
+              >
+                Select Questions
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+              {event.questions.map((q, idx) => (
+                <div key={q.id} className="flex items-center gap-3 bg-[#131314] border border-[#2a2a2b] p-3 rounded">
+                  <div className="w-6 h-6 shrink-0 bg-[#2a2a2b] rounded flex items-center justify-center text-xs font-bold text-gray-400">
+                    {idx + 1}
+                  </div>
+                  <p className="text-sm text-gray-200 truncate flex-1">{q.question_text}</p>
+                  <span className="text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded border border-[#4a4456] bg-[#2a2a2b] text-gray-400">
+                    {q.type?.replace('_', ' ')}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Participants List */}
       <div>
         <h2 className="text-lg font-bold font-display-lg tracking-wide mb-4 flex items-center gap-2">
           <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>groups</span>
-          Participants ({totalPlayers})
+          Participants ({participants.length} / {totalPlayers})
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {participants.length === 0 ? (
@@ -288,7 +376,34 @@ export default function GameControl() {
             ))
           )}
         </div>
+        {participantsPagination && participantsPagination.current_page < participantsPagination.last_page && (
+          <div className="flex justify-center pt-4">
+            <button
+              type="button"
+              onClick={loadMoreParticipants}
+              disabled={isLoadingMoreParticipants}
+              className="border border-[#353436] hover:border-[#7a33ff] bg-[#1a1a1c] hover:bg-[#2a2a2b] disabled:opacity-50 text-gray-300 hover:text-white rounded px-5 py-3 text-sm font-bold tracking-wider transition-colors"
+            >
+              {isLoadingMoreParticipants ? 'LOADING...' : 'LOAD MORE PARTICIPANTS'}
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Modals */}
+      <Suspense fallback={null}>
+        {showSelectModal && (
+          <SelectQuestionsModal
+            isOpen={showSelectModal}
+            onClose={() => setShowSelectModal(false)}
+            eventId={eventId}
+            onSuccess={() => {
+              clearApiCache(`/admin/events/${eventId}`);
+              fetchEventData();
+            }}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

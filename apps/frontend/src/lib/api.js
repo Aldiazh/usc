@@ -11,11 +11,24 @@ const api = axios.create({
 });
 
 // Request interceptor — attach Bearer token
+// Checks admin token first, then participant token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const adminToken = localStorage.getItem('auth_token');
+  const participantToken = localStorage.getItem('participant_token');
+  
+  // Use admin token for admin routes, participant token for participant routes
+  if (adminToken && config.url?.startsWith('/admin')) {
+    config.headers.Authorization = `Bearer ${adminToken}`;
+  } else if (adminToken && config.url?.startsWith('/auth/logout')) {
+    config.headers.Authorization = `Bearer ${adminToken}`;
+  } else if (participantToken && (config.url?.startsWith('/participant') || config.url?.startsWith('/auth/logout'))) {
+    config.headers.Authorization = `Bearer ${participantToken}`;
+  } else if (adminToken) {
+    config.headers.Authorization = `Bearer ${adminToken}`;
+  } else if (participantToken) {
+    config.headers.Authorization = `Bearer ${participantToken}`;
   }
+  
   return config;
 });
 
@@ -24,11 +37,16 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      // Only redirect if on admin routes
+      // Check which context we're in
       if (window.location.pathname.startsWith('/admin')) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
         window.location.href = '/admin/login';
+      } else if (window.location.pathname.startsWith('/join') || 
+                 window.location.pathname.startsWith('/play')) {
+        localStorage.removeItem('participant_token');
+        localStorage.removeItem('participant_user');
+        window.location.href = '/login';
       }
     }
     return Promise.reject(error);

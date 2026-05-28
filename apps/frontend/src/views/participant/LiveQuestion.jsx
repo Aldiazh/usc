@@ -11,6 +11,8 @@ const optionStyles = [
 
 export default function LiveQuestion() {
   const [selected, setSelected] = useState(null);
+  const [textAnswer, setTextAnswer] = useState('');
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const startTimeRef = useRef(Date.now());
   const score = useGameStore((s) => s.score);
@@ -21,6 +23,8 @@ export default function LiveQuestion() {
   useEffect(() => {
     if (!currentQuestion) return;
     setSelected(null);
+    setTextAnswer('');
+    setIsSubmitted(false);
     setTimeLeft(currentQuestion.time_limit || 30);
     startTimeRef.current = Date.now();
 
@@ -34,11 +38,19 @@ export default function LiveQuestion() {
     return () => clearInterval(interval);
   }, [currentQuestion?.event_question_id]);
 
-  const handleAnswer = (optionId) => {
-    if (selected) return;
-    setSelected(optionId);
+  const handleAnswer = (answerValue) => {
+    if (isSubmitted || selected) return;
+    setIsSubmitted(true);
+    
+    if (currentQuestion?.type === 'multiple_choice') {
+      setSelected(answerValue);
+    }
+    
     const timeTakenMs = Date.now() - startTimeRef.current;
-    submitAnswer(currentQuestion?.event_question_id, optionId, timeTakenMs);
+    const optionId = currentQuestion?.type === 'multiple_choice' ? answerValue : null;
+    const textAns = currentQuestion?.type !== 'multiple_choice' ? answerValue : null;
+    
+    submitAnswer(currentQuestion?.event_question_id, optionId, textAns, timeTakenMs);
   };
 
   // Build options from current question data or use fallback
@@ -49,6 +61,34 @@ export default function LiveQuestion() {
   }));
 
   const questionText = currentQuestion?.question_text || 'Waiting for question...';
+
+  const renderQuestionText = () => {
+    if (currentQuestion?.type === 'short_answer' && questionText.includes('___')) {
+      const parts = questionText.split('___');
+      return (
+        <span className="inline-flex flex-wrap items-center justify-center gap-y-3 leading-relaxed">
+          {parts.map((part, i) => (
+            <React.Fragment key={i}>
+              <span>{part}</span>
+              {i < parts.length - 1 && (
+                <input
+                  type="text"
+                  value={textAnswer}
+                  onChange={(e) => setTextAnswer(e.target.value)}
+                  disabled={isSubmitted}
+                  className="mx-2 px-4 py-2 border-b-[4px] border-black bg-gray-100 text-[#7a33ff] font-bold text-center focus:outline-none focus:border-[#7a33ff] min-w-[120px] rounded-t-md transition-colors"
+                  placeholder="jawaban..."
+                  autoFocus
+                />
+              )}
+            </React.Fragment>
+          ))}
+        </span>
+      );
+    }
+    return questionText;
+  };
+
   const questionIndex = (currentQuestion?.index ?? 0) + 1;
   const totalQuestions = currentQuestion?.total ?? '?';
   const progressPercent = totalQuestions !== '?' ? ((questionIndex) / totalQuestions) * 100 : 0;
@@ -95,40 +135,63 @@ export default function LiveQuestion() {
         </div>
 
         {/* Question Card */}
-        <div className="w-full bg-white border-[4px] md:border-[6px] border-black rounded-lg min-h-[150px] md:min-h-[250px] flex items-center justify-center p-4 md:p-8 mb-4 md:mb-8 shadow-[0_6px_0_0_#000] md:shadow-[0_8px_0_0_#000]">
-          <h3 className="text-xl md:text-3xl text-center font-medium">
-            {questionText}
+        <div className="w-full bg-white border-[4px] md:border-[6px] border-black rounded-lg min-h-[150px] md:min-h-[250px] flex flex-col items-center justify-center p-4 md:p-8 mb-4 md:mb-8 shadow-[0_6px_0_0_#000] md:shadow-[0_8px_0_0_#000]">
+          <h3 className="text-xl md:text-3xl text-center font-medium w-full">
+            {renderQuestionText()}
           </h3>
         </div>
 
-        {/* Answers Grid */}
-        <div className="grid grid-cols-2 gap-3 md:gap-4 flex-1">
-          {options.map((opt) => {
-            const isSelected = selected === opt.id;
-            const isUnselectedState = selected !== null && !isSelected;
-            
-            return (
-              <button
-                key={opt.id}
-                onClick={() => handleAnswer(opt.id)}
-                disabled={!!selected}
-                className={`
-                  relative overflow-hidden border-[3px] md:border-[6px] border-black rounded-lg p-2 md:p-4 flex flex-col md:flex-row items-center md:items-center justify-center md:justify-start gap-2 md:gap-6 transition-all active:translate-y-1 md:active:translate-y-2 active:shadow-[0_0px_0_0_#000] shadow-[0_4px_0_0_#000] md:shadow-[0_8px_0_0_#000]
-                  ${isSelected ? `${opt.color} text-white scale-[0.98]` : ''}
-                  ${isUnselectedState ? 'bg-white text-black opacity-40 grayscale' : ''}
-                  ${!selected ? `${opt.color} text-white hover:brightness-110` : ''}
-                `}
-              >
-                <div className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center shrink-0 border-[2px] md:border-[3px] border-black/10 ${opt.iconColor}`}>
-                  <span className="material-symbols-outlined text-[24px] md:text-[32px] text-white" style={{ fontVariationSettings: "'FILL' 0" }}>
-                    {opt.shape}
-                  </span>
-                </div>
-                <span className="text-lg md:text-2xl font-bold md:font-medium text-center md:text-left">{opt.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {/* Answers Area */}
+        {currentQuestion?.type === 'multiple_choice' || !currentQuestion ? (
+          <div className="grid grid-cols-2 gap-3 md:gap-4 flex-1">
+            {options.map((opt) => {
+              const isSelected = selected === opt.id;
+              const isUnselectedState = selected !== null && !isSelected;
+              
+              return (
+                <button
+                  key={opt.id}
+                  onClick={() => handleAnswer(opt.id)}
+                  disabled={isSubmitted}
+                  className={`
+                    relative overflow-hidden border-[3px] md:border-[6px] border-black rounded-lg p-2 md:p-4 flex flex-col md:flex-row items-center md:items-center justify-center md:justify-start gap-2 md:gap-6 transition-all active:translate-y-1 md:active:translate-y-2 active:shadow-[0_0px_0_0_#000] shadow-[0_4px_0_0_#000] md:shadow-[0_8px_0_0_#000]
+                    ${isSelected ? `${opt.color} text-white scale-[0.98]` : ''}
+                    ${isUnselectedState ? 'bg-white text-black opacity-40 grayscale' : ''}
+                    ${!selected ? `${opt.color} text-white hover:brightness-110` : ''}
+                  `}
+                >
+                  <div className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center shrink-0 border-[2px] md:border-[3px] border-black/10 ${opt.iconColor}`}>
+                    <span className="material-symbols-outlined text-[24px] md:text-[32px] text-white" style={{ fontVariationSettings: "'FILL' 0" }}>
+                      {opt.shape}
+                    </span>
+                  </div>
+                  <span className="text-lg md:text-2xl font-bold md:font-medium text-center md:text-left">{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-start gap-4">
+            {!questionText.includes('___') && (
+              <input
+                type="text"
+                value={textAnswer}
+                onChange={(e) => setTextAnswer(e.target.value)}
+                disabled={isSubmitted}
+                placeholder="Ketik jawaban Anda di sini..."
+                className="w-full max-w-2xl bg-white border-[4px] border-black rounded-lg px-6 py-4 text-xl md:text-2xl font-bold focus:border-[#7a33ff] focus:outline-none transition-colors shadow-[0_4px_0_0_#000] text-center"
+                autoFocus
+              />
+            )}
+            <button
+              onClick={() => handleAnswer(textAnswer)}
+              disabled={isSubmitted || !textAnswer.trim()}
+              className="mt-4 w-full max-w-2xl bg-[#7a33ff] text-white border-[4px] border-black rounded-lg p-4 md:p-6 text-xl md:text-2xl font-black font-display-lg tracking-wider uppercase transition-all active:translate-y-2 active:shadow-[0_0px_0_0_#000] shadow-[0_6px_0_0_#000] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0 disabled:active:shadow-[0_6px_0_0_#000]"
+            >
+              {isSubmitted ? 'JAWABAN TERKIRIM' : 'SUBMIT JAWABAN'}
+            </button>
+          </div>
+        )}
       </main>
     </div>
   );

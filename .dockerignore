@@ -1,0 +1,12 @@
+.git
+.vscode
+node_modules
+apps/*/node_modules
+apps/frontend/dist
+apps/frontend/.vite
+apps/frontend/.cache
+apps/backend/vendor
+apps/backend/storage/logs
+apps/backend/bootstrap/cache/*.php
+npm-debug.log*
+*.log

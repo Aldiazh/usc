@@ -40,6 +40,6 @@ class GamePlayController extends Controller
             'points_earned' => $answer->points_earned,
             'total_score' => $participant->total_score,
             'current_rank' => $myRank !== false ? $myRank + 1 : null,
-        ]);
+        ])->header('Cache-Control', 'no-store');
     }
 }

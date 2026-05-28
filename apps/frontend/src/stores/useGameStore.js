@@ -5,7 +5,7 @@ const useGameStore = create((set) => ({
   pin: '',
   participantId: null,
   eventId: null,
-  playerInfo: null, // { nickname, team_name, institution }
+  playerInfo: null, // { nickname, institution }
   
   // Game flow state
   gameState: 'idle', // 'idle' | 'lobby' | 'countdown' | 'playing' | 'feedback' | 'scoreboard' | 'eliminated' | 'ended'

@@ -141,6 +141,8 @@ class GameController extends Controller
      */
     public function liveStats(Event $event): JsonResponse
     {
-        return response()->json($this->gameService->getLiveStats($event));
+        return response()
+            ->json($this->gameService->getLiveStats($event))
+            ->header('Cache-Control', 'no-store');
     }
 }

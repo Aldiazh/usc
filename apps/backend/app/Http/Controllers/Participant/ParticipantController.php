@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Participant;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\JoinEventRequest;
 use App\Http\Resources\ParticipantResource;
 use App\Models\Participant;
 use App\Events\LobbyUpdated;
 use App\Services\GameService;
 use App\Services\ParticipantService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ParticipantController extends Controller
 {
@@ -20,13 +20,20 @@ class ParticipantController extends Controller
 
     /**
      * Join an event using a 6-digit PIN.
-     * No authentication required.
+     * Requires participant authentication (sanctum token).
+     * User data (name, institution) is taken from the authenticated user.
      */
-    public function join(JoinEventRequest $request): JsonResponse
+    public function join(Request $request): JsonResponse
     {
+        $data = $request->validate([
+            'pin' => 'required|string|size:6',
+        ]);
+
+        $user = $request->user();
+
         $participant = $this->participantService->joinByPin(
-            $request->validated('pin'),
-            $request->validated()
+            $data['pin'],
+            $user
         );
 
         $participant->load('event');
@@ -79,7 +86,9 @@ class ParticipantController extends Controller
             }
         }
 
-        return response()->json($data);
+        return response()
+            ->json($data)
+            ->header('Cache-Control', 'no-store');
     }
 
     /**
@@ -93,7 +102,7 @@ class ParticipantController extends Controller
             'ranking' => ParticipantResource::collection($ranking),
             'my_rank' => $ranking->search(fn($p) => $p->id === $participant->id) + 1,
             'my_score' => $participant->fresh()->total_score,
-        ]);
+        ])->header('Cache-Control', 'no-store');
     }
 
     /**
@@ -103,6 +112,8 @@ class ParticipantController extends Controller
     {
         $this->participantService->setOnline($participant, true);
 
-        return response()->json(['status' => 'ok']);
+        return response()
+            ->json(['status' => 'ok'])
+            ->header('Cache-Control', 'no-store');
     }
 }

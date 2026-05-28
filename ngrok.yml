@@ -1,0 +1,13 @@
+version: 3
+agent:
+  authtoken: 3CDSyVjYZJUi78gWFjBBJFoOgxs_5zeDnMekjBQBC9GHkWDBH
+tunnels:
+  frontend:
+    proto: http
+    addr: 5173
+  backend:
+    proto: http
+    addr: 8000
+  reverb:
+    proto: http
+    addr: 8080

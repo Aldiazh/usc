@@ -4,9 +4,12 @@ namespace App\Services;
 
 use App\Models\Event;
 use App\Models\EventQuestion;
+use App\Models\Participant;
+use App\Models\Question;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Cache;
 
 class EventService
 {
@@ -26,23 +29,28 @@ class EventService
         $data['user_id'] = Auth::id();
         $data['pin'] = $this->generateUniquePin();
 
-        return Event::create($data);
+        $event = Event::create($data);
+        Cache::forget('dashboard_stats');
+
+        return $event;
     }
 
     public function update(Event $event, array $data): Event
     {
         $event->update($data);
+        Cache::forget('dashboard_stats');
         return $event->fresh();
     }
 
     public function delete(Event $event): void
     {
         $event->delete();
+        Cache::forget('dashboard_stats');
     }
 
     public function show(Event $event): Event
     {
-        return $event->load(['questions', 'participants']);
+        return $event->load('questions')->loadCount(['participants', 'questions']);
     }
 
     /**
@@ -63,20 +71,31 @@ class EventService
 
     public function updateStatus(Event $event, string $status): Event
     {
-        return $this->transitionTo($event, $status);
+        $updatedEvent = $this->transitionTo($event, $status);
+        Cache::forget('dashboard_stats');
+        return $updatedEvent;
     }
 
     public function getDashboardStats(): array
     {
-        return [
-            'active_events' => Event::whereIn('status', ['lobby', 'live'])->count(),
-            'total_questions' => \App\Models\Question::count(),
-            'total_participants' => \App\Models\Participant::count(),
-            'events' => Event::withCount('participants')
-                ->orderBy('created_at', 'desc')
-                ->limit(10)
-                ->get(),
-        ];
+        return Cache::remember('dashboard_stats', 300, function () {
+            $counts = DB::selectOne("
+                SELECT
+                    (SELECT COUNT(*) FROM events WHERE status IN ('lobby', 'live')) as active_events,
+                    (SELECT COUNT(*) FROM questions) as total_questions,
+                    (SELECT COUNT(*) FROM participants) as total_participants
+            ");
+
+            return [
+                'active_events' => (int) $counts->active_events,
+                'total_questions' => (int) $counts->total_questions,
+                'total_participants' => (int) $counts->total_participants,
+                'events' => Event::withCount('participants')
+                    ->orderBy('created_at', 'desc')
+                    ->limit(10)
+                    ->get(),
+            ];
+        });
     }
 
     private function generateUniquePin(): string
@@ -118,8 +137,9 @@ class EventService
             }
 
             $event->update($attributes);
+            Cache::forget('dashboard_stats');
 
-            return $event->fresh();
+            return $event->refresh();
         });
     }
 }

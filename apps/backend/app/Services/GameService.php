@@ -108,7 +108,9 @@ class GameService
     {
         return $event->eventQuestions()
             ->with('question')
-            ->skip($event->current_question_index)
+            ->orderBy('sort_order')
+            ->offset($event->current_question_index)
+            ->limit(1)
             ->first();
     }
 
@@ -134,8 +136,9 @@ class GameService
             }
 
             $lockedEvent->update(['current_question_index' => $nextIndex]);
+            $lockedEvent->current_question_index = $nextIndex;
 
-            return $this->getCurrentQuestion($lockedEvent->fresh());
+            return $this->getCurrentQuestion($lockedEvent);
         });
     }
 
@@ -151,18 +154,28 @@ class GameService
         $correctCount = 0;
 
         if ($currentEQ) {
-            $answers = Answer::where('event_question_id', $currentEQ->id)->get();
-            $answeredCount = $answers->count();
-            $avgTime = $answers->avg('time_taken_ms') ?? 0;
-            $correctCount = $answers->where('is_correct', true)->count();
+            $answerStats = Answer::where('event_question_id', $currentEQ->id)
+                ->selectRaw('COUNT(*) as answered_count')
+                ->selectRaw('SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) as correct_count')
+                ->selectRaw('COALESCE(AVG(time_taken_ms), 0) as avg_time')
+                ->first();
+
+            $answeredCount = (int) $answerStats->answered_count;
+            $correctCount = (int) $answerStats->correct_count;
+            $avgTime = (int) $answerStats->avg_time;
         }
 
+        $participantStats = Participant::where('event_id', $event->id)
+            ->selectRaw("COUNT(CASE WHEN role = 'player' THEN 1 END) as total_participants")
+            ->selectRaw('COUNT(CASE WHEN is_online THEN 1 END) as online_count')
+            ->first();
+
         return [
-            'total_participants' => $event->participants()->where('role', 'player')->count(),
-            'online_count' => $event->participants()->where('is_online', true)->count(),
+            'total_participants' => (int) $participantStats->total_participants,
+            'online_count' => (int) $participantStats->online_count,
             'answered_count' => $answeredCount,
             'correct_count' => $correctCount,
-            'avg_time_ms' => (int) $avgTime,
+            'avg_time_ms' => $avgTime,
             'current_question_index' => $event->current_question_index,
             'total_questions' => $event->eventQuestions()->count(),
         ];
@@ -194,19 +207,14 @@ class GameService
                 ]);
             }
 
-            $eliminated = [];
+            $eliminatedIds = $players->slice($survivalCount)->pluck('id')->toArray();
 
-            foreach ($players as $index => $player) {
-                if ($index >= $survivalCount) {
-                    $player->update([
-                        'status' => 'eliminated',
-                        'role' => 'spectator',
-                    ]);
-                    $eliminated[] = $player->id;
-                }
+            if (!empty($eliminatedIds)) {
+                Participant::whereIn('id', $eliminatedIds)
+                    ->update(['status' => 'eliminated', 'role' => 'spectator']);
             }
 
-            return $eliminated;
+            return $eliminatedIds;
         });
     }
 

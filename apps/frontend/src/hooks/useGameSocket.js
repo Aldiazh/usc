@@ -50,12 +50,13 @@ export default function useGameSocket() {
   }, [eventId]);
 
   // Submit answer via REST API (not socket)
-  const submitAnswer = useCallback(async (eventQuestionId, selectedOptionId, timeTakenMs) => {
+  const submitAnswer = useCallback(async (eventQuestionId, selectedOptionId, textAnswer, timeTakenMs) => {
     if (!participantId) return null;
     try {
       const res = await api.post(`/participant/${participantId}/answer`, {
         event_question_id: eventQuestionId,
         selected_option_id: selectedOptionId,
+        text_answer: textAnswer,
         time_taken_ms: timeTakenMs,
       });
       useGameStore.getState().setLastFeedback(res.data);
@@ -69,15 +70,10 @@ export default function useGameSocket() {
     }
   }, [participantId]);
 
-  // Join game room via REST API
-  const joinGameRoom = useCallback(async (pin, playerInfo) => {
+  // Join game room via REST API — now only needs PIN (user data from auth token)
+  const joinGameRoom = useCallback(async (pin) => {
     try {
-      const res = await api.post('/participant/join', {
-        pin,
-        nickname: playerInfo.nickname,
-        team_name: playerInfo.teamname || playerInfo.team_name,
-        institution: playerInfo.institution,
-      });
+      const res = await api.post('/participant/join', { pin });
       const participant = res.data.participant;
       useGameStore.getState().setParticipantId(participant.id);
       useGameStore.getState().setEventId(participant.event_id || participant.event?.id);

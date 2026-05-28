@@ -29,8 +29,10 @@ class EventResource extends JsonResource
             ),
             'questions_count' => $this->when(
                 $this->relationLoaded('questions'),
-                fn() => $this->questions->count()
+                fn() => $this->questions->count(),
+                $this->questions_count ?? 0
             ),
+            'questions' => QuestionResource::collection($this->whenLoaded('questions')),
             'scheduled_at' => $this->scheduled_at?->toISOString(),
             'started_at' => $this->started_at?->toISOString(),
             'ended_at' => $this->ended_at?->toISOString(),

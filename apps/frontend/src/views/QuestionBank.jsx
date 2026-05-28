@@ -1,7 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { toast, Toaster } from 'sonner';
 import api from '../lib/api';
-import UploadModal from '../components/UploadModal';
+import { cachedGet, clearApiCache, SHORT_CACHE_TTL } from '../lib/apiCache';
+
+const UploadModal = React.lazy(() => import('../components/UploadModal'));
+const CreateQuestionModal = React.lazy(() => import('../components/CreateQuestionModal'));
 
 const selectClass = "bg-[#131314] hover:bg-[#1f1f20] border border-[#353436] text-gray-200 rounded-md px-4 py-2.5 text-xs font-bold tracking-wider focus:outline-none focus:border-[#7a33ff] focus:ring-1 focus:ring-[#7a33ff] shrink-0 cursor-pointer transition-all shadow-sm appearance-none pr-10 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239ca3af%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:16px] bg-[right_12px_center] bg-no-repeat uppercase";
 
@@ -15,21 +18,35 @@ export default function QuestionBank() {
   const [questions, setQuestions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filters, setFilters] = useState({ topic: '', difficulty: '', type: '' });
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState(null);
+  const searchTimerRef = useRef(null);
+
+  // Debounce search input (400ms)
+  const handleSearchChange = useCallback((value) => {
+    setSearch(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(value);
+      setPage(1);
+    }, 400);
+  }, []);
 
   const fetchQuestions = useCallback(async () => {
     setIsLoading(true);
     try {
       const params = { page, per_page: 15 };
-      if (search) params.search = search;
+      if (debouncedSearch) params.search = debouncedSearch;
       if (filters.topic) params.topic = filters.topic;
       if (filters.difficulty) params.difficulty = filters.difficulty;
       if (filters.type) params.type = filters.type;
 
-      const res = await api.get('/admin/questions', { params });
+      const res = await cachedGet('/admin/questions', { params }, SHORT_CACHE_TTL);
       setQuestions(res.data.data || []);
       setPagination({ current_page: res.data.current_page, last_page: res.data.last_page, total: res.data.total });
     } catch (err) {
@@ -37,7 +54,7 @@ export default function QuestionBank() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, filters]);
+  }, [page, debouncedSearch, filters]);
 
   useEffect(() => { fetchQuestions(); }, [fetchQuestions]);
 
@@ -46,14 +63,32 @@ export default function QuestionBank() {
     try {
       await api.delete(`/admin/questions/${id}`);
       toast.success('Question deleted');
+      clearApiCache('/admin/questions');
       fetchQuestions();
     } catch { toast.error('Delete failed'); }
+  };
+
+  const handleQuestionsChanged = () => {
+    clearApiCache('/admin/questions');
+    fetchQuestions();
   };
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-8 flex flex-col gap-6 font-body-md animate-in fade-in duration-500 min-h-full">
       <Toaster position="top-center" theme="dark" richColors />
-      <UploadModal isOpen={showUpload} onClose={() => setShowUpload(false)} onSuccess={fetchQuestions} />
+      <Suspense fallback={null}>
+        {showUpload && (
+          <UploadModal isOpen={showUpload} onClose={() => setShowUpload(false)} onSuccess={handleQuestionsChanged} />
+        )}
+        {(showCreate || !!editingQuestion) && (
+          <CreateQuestionModal
+            isOpen={showCreate || !!editingQuestion}
+            onClose={() => { setShowCreate(false); setEditingQuestion(null); }}
+            onSuccess={handleQuestionsChanged}
+            editingQuestion={editingQuestion}
+          />
+        )}
+      </Suspense>
       
       {/* Top Header / Search */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#0a0a0a] -mx-4 md:-mx-8 -mt-4 md:-mt-8 px-4 md:px-8 py-6 border-b border-[#1f2937] sticky top-0 z-30 gap-4">
@@ -65,7 +100,7 @@ export default function QuestionBank() {
               type="text" 
               placeholder="Search..." 
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="bg-[#1f1f20] border border-[#353436] rounded text-white pl-12 pr-4 py-3 w-full md:w-[250px] lg:w-[350px] focus:outline-none focus:border-[#7a33ff] transition-colors shadow-inner"
             />
           </div>
@@ -78,6 +113,7 @@ export default function QuestionBank() {
               <span className="text-sm">IMPORT</span>
             </button>
             <button 
+              onClick={() => setShowCreate(true)}
               className="w-1/2 sm:w-auto bg-[#7a33ff] hover:bg-[#6a1ceb] text-white px-6 py-3 rounded font-bold tracking-wide flex items-center justify-center gap-2 transition-all active:scale-95 whitespace-nowrap shadow-[0_4px_14px_0_rgba(122,51,255,0.39)]"
             >
               <span className="material-symbols-outlined font-bold">add</span>
@@ -160,7 +196,7 @@ export default function QuestionBank() {
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-2 hover:bg-[#2a2a2b] rounded transition-colors text-gray-400 hover:text-white">
+                    <button onClick={() => setEditingQuestion(q)} className="p-2 hover:bg-[#2a2a2b] rounded transition-colors text-gray-400 hover:text-white">
                       <span className="material-symbols-outlined text-[20px]">edit</span>
                     </button>
                     <button onClick={() => deleteQuestion(q.id)} className="p-2 hover:bg-[#450a0a] rounded transition-colors text-gray-400 hover:text-red-400">

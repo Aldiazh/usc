@@ -1,98 +1,107 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 
-// Layouts & Guards
 import Layout from './components/Layout';
 import AuthGuard from './components/AuthGuard';
+import ParticipantGuard from './components/ParticipantGuard';
 import ErrorBoundary from './components/ErrorBoundary';
+import { routeLoaders } from './lib/routePrefetch';
 
-// Admin Views
-import AdminLogin from './views/AdminLogin';
-import Dashboard from './views/Dashboard';
-import QuestionBank from './views/QuestionBank';
-import GlobalRanking from './views/GlobalRanking';
-import GameControl from './views/admin/GameControl';
+const AdminLogin = React.lazy(routeLoaders.adminLogin);
+const Dashboard = React.lazy(routeLoaders.dashboard);
+const QuestionBank = React.lazy(routeLoaders.questions);
+const GlobalRanking = React.lazy(routeLoaders.ranking);
+const GameControl = React.lazy(routeLoaders.gameControl);
+const UserManagement = React.lazy(routeLoaders.users);
+const ParticipantLogin = React.lazy(routeLoaders.participantLogin);
+const EnterPin = React.lazy(routeLoaders.enterPin);
+const LiveQuestion = React.lazy(routeLoaders.liveQuestion);
+const Feedback = React.lazy(routeLoaders.feedback);
+const WaitingLobby = React.lazy(routeLoaders.waitingLobby);
+const Eliminated = React.lazy(routeLoaders.eliminated);
 
-// Participant Views
-import EnterPin from './views/participant/EnterPin';
-import JoinForm from './views/participant/JoinForm';
-import LiveQuestion from './views/participant/LiveQuestion';
-import Feedback from './views/participant/Feedback';
-import WaitingLobby from './views/participant/WaitingLobby';
-import Eliminated from './views/participant/Eliminated';
-
-// Zustand Store
 import useGameStore from './stores/useGameStore';
 
-import { getEcho } from './lib/echo';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-[#131314] flex items-center justify-center flex-col gap-4">
+      <div className="w-12 h-12 border-4 border-[#7a33ff] border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+function LazyPage({ children }) {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      {children}
+    </Suspense>
+  );
+}
+
+function PlayView({ gameState }) {
+  if (gameState === 'playing') return <LiveQuestion />;
+  if (gameState === 'feedback') return <Feedback />;
+  if (gameState === 'lobby') return <Navigate to="/play/lobby" replace />;
+  if (gameState === 'eliminated') return <Navigate to="/play/eliminated" replace />;
+
+  return (
+    <div className="min-h-screen bg-[#131314] flex items-center justify-center flex-col gap-4">
+      <div className="w-16 h-16 border-4 border-[#7a33ff] border-t-transparent rounded-full animate-spin" />
+      <h1 className="text-white text-2xl font-bold animate-pulse font-display-lg tracking-wide">WAITING FOR HOST...</h1>
+      <p className="text-gray-500 text-sm">The game will start soon</p>
+    </div>
+  );
+}
 
 export default function App() {
   const gameState = useGameStore((state) => state.gameState);
-
-  // Setup WebSocket connection for global testing
-  React.useEffect(() => {
-    const echo = getEcho();
-
-    // Listen to test-channel
-    const channel = echo.channel('test-channel');
-    channel.listen('.App\\Events\\PingEvent', (e) => {
-      console.log('Echo received PingEvent:', e);
-      toast.success(e.message, {
-        duration: 5000,
-        position: 'top-right',
-      });
-    });
-
-    // Cleanup listener on unmount
-    return () => {
-      echo.leaveChannel('test-channel');
-    };
-  }, []);
 
   return (
     <ErrorBoundary>
       <Toaster theme="dark" />
       <div className="relative min-h-screen">
         <Routes>
-          {/* --- Root Redirect --- */}
-          <Route path="/" element={<Navigate to="/join" replace />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/login" element={<LazyPage><ParticipantLogin /></LazyPage>} />
 
-          {/* --- Participant Flow --- */}
-          <Route path="/join" element={<EnterPin />} />
-          <Route path="/join/form" element={<JoinForm />} />
-          <Route path="/play/lobby" element={<WaitingLobby />} />
-          <Route path="/play/eliminated" element={<Eliminated />} />
-          
-          {/* Play route renders view based on gameState */}
+          <Route path="/join" element={
+            <ParticipantGuard>
+              <LazyPage><EnterPin /></LazyPage>
+            </ParticipantGuard>
+          } />
+          <Route path="/play/lobby" element={
+            <ParticipantGuard>
+              <LazyPage><WaitingLobby /></LazyPage>
+            </ParticipantGuard>
+          } />
+          <Route path="/play/eliminated" element={
+            <ParticipantGuard>
+              <LazyPage><Eliminated /></LazyPage>
+            </ParticipantGuard>
+          } />
           <Route path="/play" element={
-            gameState === 'playing' ? <LiveQuestion /> :
-            gameState === 'feedback' ? <Feedback /> :
-            gameState === 'lobby' ? <Navigate to="/play/lobby" replace /> :
-            gameState === 'eliminated' ? <Navigate to="/play/eliminated" replace /> :
-            <div className="min-h-screen bg-[#131314] flex items-center justify-center flex-col gap-4">
-              <div className="w-16 h-16 border-4 border-[#7a33ff] border-t-transparent rounded-full animate-spin" />
-              <h1 className="text-white text-2xl font-bold animate-pulse font-display-lg tracking-wide">WAITING FOR HOST...</h1>
-              <p className="text-gray-500 text-sm">The game will start soon</p>
-            </div>
+            <ParticipantGuard>
+              <LazyPage><PlayView gameState={gameState} /></LazyPage>
+            </ParticipantGuard>
           } />
 
-          {/* --- Admin Flow (Protected) --- */}
-          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/login" element={<LazyPage><AdminLogin /></LazyPage>} />
           <Route path="/admin" element={
             <AuthGuard>
               <Layout />
             </AuthGuard>
           }>
-            <Route index element={<Dashboard />} />
-            <Route path="questions" element={<QuestionBank />} />
-            <Route path="ranking" element={<GlobalRanking />} />
-            <Route path="events/:eventId" element={<GameControl />} />
+            <Route index element={<LazyPage><Dashboard /></LazyPage>} />
+            <Route path="questions" element={<LazyPage><QuestionBank /></LazyPage>} />
+            <Route path="users" element={<LazyPage><UserManagement /></LazyPage>} />
+            <Route path="ranking" element={<LazyPage><GlobalRanking /></LazyPage>} />
+            <Route path="events/:eventId" element={<LazyPage><GameControl /></LazyPage>} />
             <Route path="analytics" element={<div className="p-8 text-gray-400">Analytics Dashboard coming soon...</div>} />
           </Route>
 
-          {/* --- Fallback --- */}
-          <Route path="*" element={<Navigate to="/join" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>
     </ErrorBoundary>

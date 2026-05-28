@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\GameController;
 use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\ParticipantAdminController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Participant\ParticipantController;
 use App\Http\Controllers\Participant\GamePlayController;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,7 @@ use Illuminate\Support\Facades\Route;
 */
 Route::prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/participant-login', [AuthController::class, 'participantLogin']);
 });
 
 /*
@@ -31,10 +33,10 @@ Route::prefix('auth')->middleware('auth:sanctum')->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| PARTICIPANT Routes (Public — PIN-based auth)
+| PARTICIPANT Routes (Protected — Sanctum token for participant)
 |--------------------------------------------------------------------------
 */
-Route::prefix('participant')->group(function () {
+Route::prefix('participant')->middleware('auth:sanctum')->group(function () {
     Route::post('/join', [ParticipantController::class, 'join']);
     Route::get('/{participant}/status', [ParticipantController::class, 'status']);
     Route::post('/{participant}/answer', [GamePlayController::class, 'answer']);
@@ -60,6 +62,18 @@ Route::prefix('admin')->middleware('auth:sanctum')->group(function () {
         Route::delete('/{question}', [QuestionController::class, 'destroy']);
         Route::post('/import', [QuestionController::class, 'import']);
         Route::get('/stats', [QuestionController::class, 'stats']);
+    });
+
+    // User Management
+    Route::prefix('users')->group(function () {
+        Route::get('/', [UserController::class, 'index']);
+        Route::post('/', [UserController::class, 'store']);
+        Route::get('/stats', [UserController::class, 'stats']);
+        Route::get('/{user}', [UserController::class, 'show']);
+        Route::put('/{user}', [UserController::class, 'update']);
+        Route::delete('/{user}', [UserController::class, 'destroy']);
+        Route::patch('/{user}/toggle-active', [UserController::class, 'toggleActive']);
+        Route::post('/bulk', [UserController::class, 'bulkCreate']);
     });
 
     // Events

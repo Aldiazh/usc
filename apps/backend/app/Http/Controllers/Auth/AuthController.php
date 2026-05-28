@@ -26,6 +26,28 @@ class AuthController extends Controller
         ]);
     }
 
+    /**
+     * Participant login endpoint.
+     */
+    public function participantLogin(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'username' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        $result = $this->authService->participantLogin(
+            $data['username'],
+            $data['password']
+        );
+
+        return response()->json([
+            'message' => 'Login berhasil',
+            'user' => $result['user'],
+            'token' => $result['token'],
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $this->authService->logout($request->user());

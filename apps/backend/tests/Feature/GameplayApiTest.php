@@ -25,11 +25,13 @@ class GameplayApiTest extends TestCase
         Event::fake([LobbyUpdated::class]);
 
         $event = $this->createEvent(status: 'lobby', maxParticipants: 1);
+        $alpha = $this->createParticipantUser(['name' => 'Alpha', 'institution' => 'USC']);
+        $beta = $this->createParticipantUser(['name' => 'Beta', 'institution' => 'USC']);
+
+        Sanctum::actingAs($alpha);
 
         $joinResponse = $this->postJson('/api/participant/join', [
             'pin' => $event->pin,
-            'nickname' => 'Alpha',
-            'institution' => 'USC',
         ]);
 
         $joinResponse
@@ -39,10 +41,10 @@ class GameplayApiTest extends TestCase
 
         Event::assertDispatched(LobbyUpdated::class);
 
+        Sanctum::actingAs($beta);
+
         $this->postJson('/api/participant/join', [
             'pin' => $event->pin,
-            'nickname' => 'Beta',
-            'institution' => 'USC',
         ])->assertStatus(422)
             ->assertJsonPath('errors.pin.0', 'Event is full. Maximum participants reached.');
     }
@@ -53,6 +55,7 @@ class GameplayApiTest extends TestCase
         $currentQuestion = $this->attachQuestionToEvent($event, 0);
         $futureQuestion = $this->attachQuestionToEvent($event, 1);
         $participant = $this->createParticipant($event);
+        Sanctum::actingAs($this->createParticipantUser());
 
         $firstAnswer = $this->postJson("/api/participant/{$participant->id}/answer", [
             'event_question_id' => $currentQuestion->id,
@@ -139,11 +142,73 @@ class GameplayApiTest extends TestCase
         Event::assertDispatched(GameEnded::class);
     }
 
+    public function test_admin_participants_and_ranking_support_legacy_and_paginated_responses(): void
+    {
+        $admin = $this->createAdmin();
+        Sanctum::actingAs($admin);
+
+        $event = $this->createEvent(user: $admin, status: 'lobby');
+        $leader = $this->createParticipant($event, ['nickname' => 'Leader', 'total_score' => 1200]);
+        $runnerUp = $this->createParticipant($event, ['nickname' => 'Runner Up', 'total_score' => 600]);
+        $third = $this->createParticipant($event, ['nickname' => 'Third', 'total_score' => 100]);
+
+        $legacyParticipants = $this->getJson("/api/admin/events/{$event->id}/participants")
+            ->assertOk()
+            ->json();
+
+        $this->assertCount(3, $legacyParticipants);
+        $this->assertSame($leader->id, $legacyParticipants[0]['id']);
+
+        $paginatedParticipants = $this->getJson("/api/admin/events/{$event->id}/participants?paginated=1&per_page=1")
+            ->assertOk()
+            ->assertJsonPath('current_page', 1)
+            ->assertJsonPath('last_page', 3)
+            ->assertJsonPath('total', 3)
+            ->json();
+
+        $this->assertCount(1, $paginatedParticipants['data']);
+        $this->assertSame($leader->id, $paginatedParticipants['data'][0]['id']);
+
+        $legacyRanking = $this->getJson("/api/admin/events/{$event->id}/ranking")
+            ->assertOk()
+            ->json();
+
+        $this->assertCount(3, $legacyRanking);
+        $this->assertSame($leader->id, $legacyRanking[0]['id']);
+        $this->assertSame(1, $legacyRanking[0]['current_rank']);
+        $this->assertSame(2, $legacyRanking[1]['current_rank']);
+
+        $paginatedRanking = $this->getJson("/api/admin/events/{$event->id}/ranking?paginated=1&per_page=2&page=2")
+            ->assertOk()
+            ->assertJsonPath('current_page', 2)
+            ->assertJsonPath('last_page', 2)
+            ->assertJsonPath('total', 3)
+            ->json();
+
+        $this->assertCount(1, $paginatedRanking['data']);
+        $this->assertSame($third->id, $paginatedRanking['data'][0]['id']);
+        $this->assertSame(3, $paginatedRanking['data'][0]['current_rank']);
+
+        $this->assertNull($runnerUp->fresh()->current_rank);
+        $this->assertNull($third->fresh()->current_rank);
+    }
+
     private function createAdmin(): User
     {
         return User::factory()->create([
             'role' => 'admin',
         ]);
+    }
+
+    private function createParticipantUser(array $overrides = []): User
+    {
+        return User::factory()->create(array_merge([
+            'name' => 'Participant User',
+            'username' => 'participant_' . str()->random(8),
+            'role' => 'participant',
+            'institution' => 'University A',
+            'is_active' => true,
+        ], $overrides));
     }
 
     private function createEvent(?User $user = null, string $status = 'lobby', int $maxParticipants = 100): GameEvent
@@ -199,9 +264,8 @@ class GameplayApiTest extends TestCase
     {
         return Participant::create(array_merge([
             'event_id' => $event->id,
-            'nickname' => 'Player '.random_int(100, 999),
-            'team_name' => null,
-            'institution' => 'USC',
+            'nickname' => 'John Doe',
+            'institution' => 'University A',
             'status' => 'waiting',
             'role' => 'player',
             'total_score' => 0,

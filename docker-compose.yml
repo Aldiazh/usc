@@ -17,6 +17,20 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: info-clash-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: info-clash-pgadmin
@@ -31,6 +45,17 @@ services:
     depends_on:
       - postgres
 
+  frontend:
+    build:
+      context: .
+      dockerfile: ./apps/frontend/Dockerfile
+    container_name: info-clash-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+
   backend:
     build:
       context: ./apps/backend
@@ -39,10 +64,18 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: redis
     volumes:
       - ./apps/backend:/app
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     command: php artisan serve --host=0.0.0.0 --port=8000
 
@@ -54,10 +87,18 @@ services:
     restart: unless-stopped
     ports:
       - "${REVERB_SERVER_PORT:-8080}:8080"
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      CACHE_STORE: redis
+      SESSION_DRIVER: redis
+      QUEUE_CONNECTION: redis
     volumes:
       - ./apps/backend:/app
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     command: php artisan reverb:start --host=0.0.0.0 --port=8080
 
@@ -66,4 +107,5 @@ volumes:
     driver: local
   pgadmin-data:
     driver: local
-
+  redis-data:
+    driver: local
