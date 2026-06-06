@@ -92,7 +92,7 @@ export default function SelectQuestionsModal({ isOpen, onClose, eventId, onSucce
 
     setIsSubmitting(true);
     try {
-      await api.post(`/admin/events/${eventId}/attach-questions`, {
+      await api.post(`/admin/events/${eventId}/questions`, {
         question_ids: Array.from(selectedIds),
         phase: 1, // Default phase
       });

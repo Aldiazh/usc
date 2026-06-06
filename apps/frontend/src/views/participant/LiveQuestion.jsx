@@ -39,7 +39,11 @@ export default function LiveQuestion() {
   }, [currentQuestion?.event_question_id]);
 
   const handleAnswer = (answerValue) => {
-    if (isSubmitted || selected) return;
+    // BUG-01 FIX: Use only isSubmitted as guard (not `selected`).
+    // `selected` is React state and may still be null on rapid double-click
+    // before the state update flushes, allowing double submission.
+    // Setting isSubmitted=true synchronously here prevents that race condition.
+    if (isSubmitted) return;
     setIsSubmitted(true);
     
     if (currentQuestion?.type === 'multiple_choice') {

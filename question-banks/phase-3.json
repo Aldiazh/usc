@@ -1,0 +1,136 @@
+{
+  "questions": [
+    {
+      "question_text": "Untuk mencari shortest path pada graph berbobot non-negatif dari satu sumber, algoritma yang paling sesuai adalah...",
+      "type": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Graph",
+      "options": [
+        { "id": "A", "text": "Dijkstra", "isCorrect": true },
+        { "id": "B", "text": "DFS biasa", "isCorrect": false },
+        { "id": "C", "text": "Kruskal", "isCorrect": false },
+        { "id": "D", "text": "Topological sort saja", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 75,
+      "points": 1500
+    },
+    {
+      "question_text": "Algoritma apa yang umum digunakan untuk mencari Minimum Spanning Tree dengan memilih edge terkecil dan memakai Disjoint Set Union?",
+      "type": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Graph",
+      "options": [
+        { "id": "A", "text": "Floyd Warshall", "isCorrect": false },
+        { "id": "B", "text": "Kruskal", "isCorrect": true },
+        { "id": "C", "text": "Bellman Ford", "isCorrect": false },
+        { "id": "D", "text": "Binary Search", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 75,
+      "points": 1500
+    },
+    {
+      "question_text": "Jika sebuah DAG memiliki edge A->C, B->C, C->D, maka urutan topological yang valid adalah...",
+      "type": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Graph",
+      "options": [
+        { "id": "A", "text": "C, A, B, D", "isCorrect": false },
+        { "id": "B", "text": "D, C, B, A", "isCorrect": false },
+        { "id": "C", "text": "A, B, C, D", "isCorrect": true },
+        { "id": "D", "text": "A, C, B, D", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 75,
+      "points": 1500
+    },
+    {
+      "question_text": "Dalam segment tree untuk range sum, kompleksitas update satu elemen dan query satu rentang umumnya adalah...",
+      "type": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Data Structures",
+      "options": [
+        { "id": "A", "text": "O(1) dan O(n)", "isCorrect": false },
+        { "id": "B", "text": "O(log n) dan O(log n)", "isCorrect": true },
+        { "id": "C", "text": "O(n) dan O(1)", "isCorrect": false },
+        { "id": "D", "text": "O(n log n) dan O(n log n)", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 75,
+      "points": 1500
+    },
+    {
+      "question_text": "Masalah knapsack 0/1 klasik dengan kapasitas W dan n item biasanya dapat diselesaikan DP dengan kompleksitas...",
+      "type": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Dynamic Programming",
+      "options": [
+        { "id": "A", "text": "O(n + W)", "isCorrect": false },
+        { "id": "B", "text": "O(nW)", "isCorrect": true },
+        { "id": "C", "text": "O(log n)", "isCorrect": false },
+        { "id": "D", "text": "O(W log W)", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 75,
+      "points": 1500
+    },
+    {
+      "question_text": "Dalam string matching, algoritma KMP memanfaatkan struktur bantu bernama...",
+      "type": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "String Algorithms",
+      "options": [
+        { "id": "A", "text": "Prefix function / LPS array", "isCorrect": true },
+        { "id": "B", "text": "Adjacency matrix", "isCorrect": false },
+        { "id": "C", "text": "Heap priority", "isCorrect": false },
+        { "id": "D", "text": "Color marking", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 75,
+      "points": 1500
+    },
+    {
+      "question_text": "Jika semua edge pada graph memiliki bobot 0 atau 1, variasi BFS yang efisien untuk shortest path adalah...",
+      "type": "multiple_choice",
+      "difficulty": "hard",
+      "topic": "Graph",
+      "options": [
+        { "id": "A", "text": "0-1 BFS menggunakan deque", "isCorrect": true },
+        { "id": "B", "text": "Bubble BFS", "isCorrect": false },
+        { "id": "C", "text": "Linear probing", "isCorrect": false },
+        { "id": "D", "text": "Heap sort", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 75,
+      "points": 1500
+    },
+    {
+      "question_text": "Berapa nilai 2^10 mod 1000?",
+      "type": "short_answer",
+      "difficulty": "hard",
+      "topic": "Math",
+      "correct_answer": "24",
+      "time_limit_seconds": 45,
+      "points": 1500
+    },
+    {
+      "question_text": "Untuk array [3, 1, 4, 1, 5], berapa panjang Longest Increasing Subsequence jika subsequence harus strictly increasing?",
+      "type": "short_answer",
+      "difficulty": "hard",
+      "topic": "Dynamic Programming",
+      "correct_answer": "3",
+      "time_limit_seconds": 60,
+      "points": 1500
+    },
+    {
+      "question_text": "Dalam DSU, operasi untuk mencari representatif/root dari suatu set biasanya disebut...",
+      "type": "short_answer",
+      "difficulty": "hard",
+      "topic": "Data Structures",
+      "correct_answer": "find",
+      "time_limit_seconds": 45,
+      "points": 1500
+    }
+  ]
+}

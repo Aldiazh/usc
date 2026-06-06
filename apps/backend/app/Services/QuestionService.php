@@ -20,7 +20,9 @@ class QuestionService
         $query = Question::query();
 
         if (!empty($filters['search'])) {
-            $query->where('question_text', 'ILIKE', "%{$filters['search']}%");
+            // SMELL-04 FIX: Use 'like' instead of 'ILIKE' for cross-database compatibility
+            // (ILIKE is PostgreSQL-only and fails on SQLite dev environment)
+            $query->where('question_text', 'like', "%{$filters['search']}%");
         }
         if (!empty($filters['topic'])) {
             $query->where('topic', $filters['topic']);

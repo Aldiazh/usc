@@ -20,11 +20,12 @@ class UserService
 
         if (!empty($filters['search'])) {
             $search = $filters['search'];
+            // SMELL-04 FIX: Use 'like' instead of 'ILIKE' for cross-database compatibility
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'ILIKE', "%{$search}%")
-                  ->orWhere('username', 'ILIKE', "%{$search}%")
-                  ->orWhere('email', 'ILIKE', "%{$search}%")
-                  ->orWhere('institution', 'ILIKE', "%{$search}%");
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('username', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('institution', 'like', "%{$search}%");
             });
         }
 

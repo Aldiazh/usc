@@ -21,6 +21,9 @@ export default function GameControl() {
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null); // track which button is loading
   const [showSelectModal, setShowSelectModal] = useState(false);
+  // BUG-12 FIX: Replace window.prompt() with modal state
+  const [showEliminateModal, setShowEliminateModal] = useState(false);
+  const [eliminateCount, setEliminateCount] = useState('');
 
   // Fetch initial data
   useEffect(() => {
@@ -121,13 +124,16 @@ export default function GameControl() {
     }
   };
 
+  // BUG-12 FIX: Modal-based eliminate replaces window.prompt()
   const handleEliminate = async () => {
-    const count = prompt('Keep top N players (eliminate the rest):');
-    if (!count || isNaN(count)) return;
+    const count = parseInt(eliminateCount, 10);
+    if (!eliminateCount || isNaN(count) || count < 1) return;
+    setShowEliminateModal(false);
+    setEliminateCount('');
     setActionLoading('eliminate');
     try {
       const res = await api.post(`/admin/events/${eventId}/eliminate`, {
-        survival_count: parseInt(count),
+        survival_count: count,
       });
       toast.success(res.data.message);
       clearApiCache(`/admin/events/${eventId}`);
@@ -226,7 +232,7 @@ export default function GameControl() {
                 End Q
               </button>
               <button
-                onClick={handleEliminate}
+                onClick={() => setShowEliminateModal(true)}
                 disabled={!!actionLoading}
                 className="bg-orange-700 hover:bg-orange-800 text-white px-5 py-3 rounded font-bold tracking-wider flex items-center gap-2 transition-colors"
               >
@@ -404,6 +410,52 @@ export default function GameControl() {
           />
         )}
       </Suspense>
+
+      {/* BUG-12 FIX: Eliminate Players Modal */}
+      {showEliminateModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1c] border-2 border-orange-900/50 rounded-xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-black font-display-lg tracking-wide text-orange-400">ELIMINATE PLAYERS</h2>
+              <button onClick={() => { setShowEliminateModal(false); setEliminateCount(''); }} className="text-gray-500 hover:text-white">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <p className="text-sm text-gray-400 mb-4">
+              Enter how many top players to <span className="text-white font-bold">keep</span>. Everyone below that rank will be eliminated.
+            </p>
+            <div className="mb-5">
+              <label className="text-xs font-bold tracking-widest text-gray-500 uppercase block mb-2">Keep Top N Players</label>
+              <input
+                type="number"
+                min="1"
+                max={totalPlayers}
+                value={eliminateCount}
+                onChange={(e) => setEliminateCount(e.target.value)}
+                placeholder={`1 – ${totalPlayers}`}
+                className="w-full bg-[#131314] border-2 border-[#2a2a2b] focus:border-orange-500 rounded-lg px-4 py-3 text-white font-bold text-xl text-center focus:outline-none transition-colors"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowEliminateModal(false); setEliminateCount(''); }}
+                className="flex-1 bg-[#2a2a2b] hover:bg-[#353436] text-gray-300 py-3 rounded-lg font-bold tracking-wider transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEliminate}
+                disabled={!eliminateCount || isNaN(parseInt(eliminateCount, 10)) || parseInt(eliminateCount, 10) < 1}
+                className="flex-1 bg-orange-700 hover:bg-orange-800 disabled:opacity-50 text-white py-3 rounded-lg font-bold tracking-wider transition-colors flex items-center justify-center gap-2"
+              >
+                <span className="material-symbols-outlined text-[18px]">person_remove</span>
+                Eliminate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

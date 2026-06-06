@@ -1,0 +1,136 @@
+{
+  "questions": [
+    {
+      "question_text": "Apa output dari ekspresi 7 % 3 dalam banyak bahasa pemrograman?",
+      "type": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Programming Basics",
+      "options": [
+        { "id": "A", "text": "1", "isCorrect": true },
+        { "id": "B", "text": "2", "isCorrect": false },
+        { "id": "C", "text": "3", "isCorrect": false },
+        { "id": "D", "text": "0", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 30,
+      "points": 500
+    },
+    {
+      "question_text": "Struktur data apa yang menggunakan prinsip First In First Out?",
+      "type": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Data Structures",
+      "options": [
+        { "id": "A", "text": "Stack", "isCorrect": false },
+        { "id": "B", "text": "Queue", "isCorrect": true },
+        { "id": "C", "text": "Tree", "isCorrect": false },
+        { "id": "D", "text": "Graph", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 30,
+      "points": 500
+    },
+    {
+      "question_text": "Kompleksitas waktu untuk mengakses elemen array berdasarkan indeks adalah...",
+      "type": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Complexity",
+      "options": [
+        { "id": "A", "text": "O(1)", "isCorrect": true },
+        { "id": "B", "text": "O(log n)", "isCorrect": false },
+        { "id": "C", "text": "O(n)", "isCorrect": false },
+        { "id": "D", "text": "O(n log n)", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 30,
+      "points": 500
+    },
+    {
+      "question_text": "Dalam basis bilangan biner, angka desimal 10 ditulis sebagai...",
+      "type": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Number Systems",
+      "options": [
+        { "id": "A", "text": "1000", "isCorrect": false },
+        { "id": "B", "text": "1001", "isCorrect": false },
+        { "id": "C", "text": "1010", "isCorrect": true },
+        { "id": "D", "text": "1110", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 30,
+      "points": 500
+    },
+    {
+      "question_text": "Jika sebuah stack berisi [1, 2, 3] dengan 3 berada di puncak, nilai yang keluar setelah operasi pop adalah...",
+      "type": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Data Structures",
+      "options": [
+        { "id": "A", "text": "1", "isCorrect": false },
+        { "id": "B", "text": "2", "isCorrect": false },
+        { "id": "C", "text": "3", "isCorrect": true },
+        { "id": "D", "text": "Tidak ada", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 30,
+      "points": 500
+    },
+    {
+      "question_text": "Operator logika AND bernilai benar jika...",
+      "type": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Logic",
+      "options": [
+        { "id": "A", "text": "Semua operand bernilai benar", "isCorrect": true },
+        { "id": "B", "text": "Minimal satu operand benar", "isCorrect": false },
+        { "id": "C", "text": "Semua operand salah", "isCorrect": false },
+        { "id": "D", "text": "Operand pertama salah", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 30,
+      "points": 500
+    },
+    {
+      "question_text": "Algoritma sorting sederhana yang berulang kali menukar elemen bersebelahan jika urutannya salah disebut...",
+      "type": "multiple_choice",
+      "difficulty": "easy",
+      "topic": "Algorithms",
+      "options": [
+        { "id": "A", "text": "Binary Search", "isCorrect": false },
+        { "id": "B", "text": "Bubble Sort", "isCorrect": true },
+        { "id": "C", "text": "Breadth First Search", "isCorrect": false },
+        { "id": "D", "text": "Dijkstra", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 30,
+      "points": 500
+    },
+    {
+      "question_text": "Berapa hasil dari 2^5?",
+      "type": "short_answer",
+      "difficulty": "easy",
+      "topic": "Math",
+      "correct_answer": "32",
+      "time_limit_seconds": 25,
+      "points": 500
+    },
+    {
+      "question_text": "Dalam pemrograman, nilai true atau false biasanya disimpan dalam tipe data...",
+      "type": "short_answer",
+      "difficulty": "easy",
+      "topic": "Programming Basics",
+      "correct_answer": "boolean",
+      "time_limit_seconds": 25,
+      "points": 500
+    },
+    {
+      "question_text": "Jika n = 5, berapa banyak iterasi pada loop for i = 0; i < n; i++?",
+      "type": "short_answer",
+      "difficulty": "easy",
+      "topic": "Programming Basics",
+      "correct_answer": "5",
+      "time_limit_seconds": 25,
+      "points": 500
+    }
+  ]
+}

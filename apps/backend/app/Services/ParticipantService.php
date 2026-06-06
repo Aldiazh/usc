@@ -45,20 +45,12 @@ class ParticipantService
                         'pin' => ['Anda telah tereliminasi dari event ini dan tidak dapat bergabung kembali.'],
                     ]);
                 }
-                // Otherwise return existing participant
+                // Otherwise return existing participant (e.g. reconnect)
                 return $existing;
             }
 
-            // Check if user was eliminated in ANY previous event
-            $wasEliminated = Participant::where('user_id', $user->id)
-                ->where('status', 'eliminated')
-                ->exists();
-
-            if ($wasEliminated) {
-                throw ValidationException::withMessages([
-                    'pin' => ['Anda telah tereliminasi di event sebelumnya dan tidak dapat mengikuti event selanjutnya.'],
-                ]);
-            }
+            // Note: elimination only applies per-event.
+            // A user eliminated from a previous event is still allowed to join a new event.
 
             $participant = Participant::create([
                 'event_id' => $event->id,
@@ -77,11 +69,24 @@ class ParticipantService
     }
 
     /**
-     * Get participants for a specific event.
+     * Get participants for a specific event (all, for admin).
      */
     public function getByEvent(string $eventId)
     {
         return $this->baseEventQuery($eventId)->get();
+    }
+
+    /**
+     * PERF-03 FIX: Get a limited snapshot of participants for WebSocket lobby broadcasts.
+     * Avoids loading all participants into memory on every join event.
+     * Returns the most recently joined participants, up to $limit.
+     */
+    public function getLobbySnapshot(string $eventId, int $limit = 100): \Illuminate\Support\Collection
+    {
+        return Participant::where('event_id', $eventId)
+            ->orderBy('joined_at', 'desc')
+            ->limit($limit)
+            ->get();
     }
 
     public function paginateByEvent(string $eventId, int $perPage = 30): LengthAwarePaginator

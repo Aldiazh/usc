@@ -84,7 +84,8 @@ class UserController extends Controller
         $data = $request->validate([
             'users' => 'required|array|min:1',
             'users.*.name' => 'required|string|max:100',
-            'users.*.email' => 'required|email|distinct|unique:users,email',
+            'users.*.username' => 'nullable|string|max:50|distinct|unique:users,username|alpha_dash',
+            'users.*.email' => 'nullable|email|distinct|unique:users,email',
             'users.*.password' => 'nullable|string|min:6',
             'users.*.role' => 'nullable|in:admin,host,participant',
             'users.*.institution' => 'nullable|string|max:200',

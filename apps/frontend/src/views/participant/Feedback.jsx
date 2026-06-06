@@ -4,7 +4,8 @@ import useGameStore from '../../stores/useGameStore';
 
 export default function Feedback() {
   const navigate = useNavigate();
-  const { lastFeedback, score, playerInfo, gameState } = useGameStore();
+  // SMELL-03 FIX: Removed unused `gameState` from destructuring to prevent unnecessary re-renders
+  const { lastFeedback, score, playerInfo } = useGameStore();
 
   const isCorrect = lastFeedback?.is_correct ?? false;
   const pointsEarned = lastFeedback?.points_earned ?? 0;

@@ -9,6 +9,10 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  // BUG-11 FIX: Replace window.prompt() with inline modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [newEventTitle, setNewEventTitle] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     fetchDashboard();
@@ -26,16 +30,22 @@ export default function Dashboard() {
     }
   };
 
-  const createEvent = async () => {
-    const title = prompt('Event title:');
+  const handleCreateEvent = async (e) => {
+    e.preventDefault();
+    const title = newEventTitle.trim();
     if (!title) return;
+    setIsCreating(true);
     try {
       const res = await api.post('/admin/events', { title });
       toast.success(`Event created! PIN: ${res.data.pin}`);
       clearApiCache('/admin/dashboard');
       fetchDashboard();
+      setNewEventTitle('');
+      setShowCreateModal(false);
     } catch (err) {
       toast.error('Failed to create event');
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -87,7 +97,7 @@ export default function Dashboard() {
             Import Bank
           </button>
           <button 
-            onClick={createEvent}
+            onClick={() => setShowCreateModal(true)}
             className="w-full sm:w-auto bg-[#7a33ff] hover:bg-[#6a1ceb] text-white px-6 py-4 rounded font-bold text-lg md:text-xl tracking-wide flex items-center justify-center gap-3 transition-colors active:scale-95 shadow-[0_4px_14px_0_rgba(122,51,255,0.39)]"
           >
             <span className="material-symbols-outlined">add_circle</span>
@@ -181,6 +191,60 @@ export default function Dashboard() {
           })}
         </div>
       </div>
+
+      {/* BUG-11 FIX: Create Event Modal — replaces window.prompt() */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1a1a1c] border-2 border-[#2a2a2b] rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-black font-display-lg tracking-wide">NEW EVENT</h2>
+              <button
+                onClick={() => { setShowCreateModal(false); setNewEventTitle(''); }}
+                className="text-gray-500 hover:text-white transition-colors"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <form onSubmit={handleCreateEvent} className="flex flex-col gap-4">
+              <div>
+                <label className="text-xs font-bold tracking-widest text-gray-500 uppercase block mb-2">Event Title</label>
+                <input
+                  type="text"
+                  value={newEventTitle}
+                  onChange={(e) => setNewEventTitle(e.target.value)}
+                  placeholder="e.g. INFO-CLASH Round 1"
+                  className="w-full bg-[#131314] border-2 border-[#2a2a2b] focus:border-[#7a33ff] rounded-lg px-4 py-3 text-white font-medium focus:outline-none transition-colors"
+                  autoFocus
+                  maxLength={255}
+                  required
+                  disabled={isCreating}
+                />
+              </div>
+              <div className="flex gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowCreateModal(false); setNewEventTitle(''); }}
+                  disabled={isCreating}
+                  className="flex-1 bg-[#2a2a2b] hover:bg-[#353436] text-gray-300 py-3 rounded-lg font-bold tracking-wider transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreating || !newEventTitle.trim()}
+                  className="flex-1 bg-[#7a33ff] hover:bg-[#6a1ceb] disabled:bg-[#4a2090] text-white py-3 rounded-lg font-bold tracking-wider transition-colors flex items-center justify-center gap-2"
+                >
+                  {isCreating ? (
+                    <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Creating...</>
+                  ) : (
+                    <><span className="material-symbols-outlined text-[18px]">add_circle</span> Create</>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

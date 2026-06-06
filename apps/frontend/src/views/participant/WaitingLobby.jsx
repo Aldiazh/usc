@@ -68,9 +68,7 @@ export default function WaitingLobby() {
               <div>
                 <p className="font-bold text-lg">{playerInfo?.nickname || 'Player'}</p>
                 <p className="text-gray-500 text-sm font-medium">{playerInfo?.institution || ''}</p>
-                {playerInfo?.teamname && (
-                  <p className="text-[#ffc703] text-xs font-bold tracking-widest uppercase mt-1">Team: {playerInfo.teamname}</p>
-                )}
+                {/* SMELL-05 FIX: Removed teamname reference — column dropped in migration */}
               </div>
             </div>
           </div>

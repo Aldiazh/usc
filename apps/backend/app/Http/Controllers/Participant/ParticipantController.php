@@ -38,11 +38,12 @@ class ParticipantController extends Controller
 
         $participant->load('event');
 
-        // Broadcast lobby update to all listeners on this event
-        $allParticipants = $this->participantService->getByEvent($participant->event_id);
+        // PERF-03 FIX: Use getLobbySnapshot() (limited) instead of getByEvent() (all)
+        // to avoid loading all participants into memory for each join broadcast.
+        $lobbySnapshot = $this->participantService->getLobbySnapshot($participant->event_id);
         broadcast(new LobbyUpdated(
             $participant->event_id,
-            ParticipantResource::collection($allParticipants)->toArray(request())
+            ParticipantResource::collection($lobbySnapshot)->toArray(request())
         ));
 
         return response()->json([
@@ -100,7 +101,7 @@ class ParticipantController extends Controller
 
         return response()->json([
             'ranking' => ParticipantResource::collection($ranking),
-            'my_rank' => $ranking->search(fn($p) => $p->id === $participant->id) + 1,
+            'my_rank' => ($rank = $ranking->search(fn($p) => $p->id === $participant->id)) !== false ? $rank + 1 : null,
             'my_score' => $participant->fresh()->total_score,
         ])->header('Cache-Control', 'no-store');
     }

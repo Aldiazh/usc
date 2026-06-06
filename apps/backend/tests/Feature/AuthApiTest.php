@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -43,6 +44,11 @@ class AuthApiTest extends TestCase
             ->postJson('/api/auth/logout')
             ->assertOk()
             ->assertJsonPath('message', 'Logged out successfully');
+
+        // Pre-existing bug fix: flush Sanctum's in-process guard resolver cache.
+        // Without this, Sanctum re-uses the already-resolved (and now logged-out) user
+        // from memory within the same PHP process, returning 200 instead of 401.
+        Auth::forgetGuards();
 
         $this->withHeader('Authorization', "Bearer {$token}")
             ->getJson('/api/auth/me')

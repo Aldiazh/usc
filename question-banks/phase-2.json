@@ -1,0 +1,136 @@
+{
+  "questions": [
+    {
+      "question_text": "Sebuah binary search pada array terurut berukuran 1024 membutuhkan paling banyak sekitar berapa kali pemeriksaan elemen?",
+      "type": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Algorithms",
+      "options": [
+        { "id": "A", "text": "10", "isCorrect": false },
+        { "id": "B", "text": "11", "isCorrect": true },
+        { "id": "C", "text": "512", "isCorrect": false },
+        { "id": "D", "text": "1024", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 45,
+      "points": 1000
+    },
+    {
+      "question_text": "Kompleksitas rata-rata quicksort dengan pivot yang cukup seimbang adalah...",
+      "type": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Complexity",
+      "options": [
+        { "id": "A", "text": "O(n)", "isCorrect": false },
+        { "id": "B", "text": "O(log n)", "isCorrect": false },
+        { "id": "C", "text": "O(n log n)", "isCorrect": true },
+        { "id": "D", "text": "O(n^2)", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 45,
+      "points": 1000
+    },
+    {
+      "question_text": "Pada graph tidak berbobot, algoritma paling tepat untuk mencari jarak minimum dari satu node ke semua node lain adalah...",
+      "type": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Graph",
+      "options": [
+        { "id": "A", "text": "DFS", "isCorrect": false },
+        { "id": "B", "text": "BFS", "isCorrect": true },
+        { "id": "C", "text": "Kruskal", "isCorrect": false },
+        { "id": "D", "text": "Merge Sort", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 45,
+      "points": 1000
+    },
+    {
+      "question_text": "Apa hasil postfix expression berikut: 5 1 2 + 4 * + 3 - ?",
+      "type": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Stack",
+      "options": [
+        { "id": "A", "text": "14", "isCorrect": true },
+        { "id": "B", "text": "15", "isCorrect": false },
+        { "id": "C", "text": "20", "isCorrect": false },
+        { "id": "D", "text": "9", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 60,
+      "points": 1000
+    },
+    {
+      "question_text": "Jika hash table mengalami collision, teknik yang menyimpan beberapa elemen dalam list pada bucket yang sama disebut...",
+      "type": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Data Structures",
+      "options": [
+        { "id": "A", "text": "Chaining", "isCorrect": true },
+        { "id": "B", "text": "Binary lifting", "isCorrect": false },
+        { "id": "C", "text": "Backtracking", "isCorrect": false },
+        { "id": "D", "text": "Memoization", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 45,
+      "points": 1000
+    },
+    {
+      "question_text": "Dalam dynamic programming, teknik menyimpan hasil subproblem agar tidak dihitung ulang disebut...",
+      "type": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Dynamic Programming",
+      "options": [
+        { "id": "A", "text": "Greedy", "isCorrect": false },
+        { "id": "B", "text": "Memoization", "isCorrect": true },
+        { "id": "C", "text": "Hashing", "isCorrect": false },
+        { "id": "D", "text": "Normalization", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 45,
+      "points": 1000
+    },
+    {
+      "question_text": "Untuk mendeteksi cycle pada directed graph, pendekatan DFS biasanya membutuhkan status visit...",
+      "type": "multiple_choice",
+      "difficulty": "medium",
+      "topic": "Graph",
+      "options": [
+        { "id": "A", "text": "Belum dikunjungi, sedang diproses, selesai diproses", "isCorrect": true },
+        { "id": "B", "text": "Genap dan ganjil saja", "isCorrect": false },
+        { "id": "C", "text": "Kiri dan kanan saja", "isCorrect": false },
+        { "id": "D", "text": "Minimum dan maksimum saja", "isCorrect": false }
+      ],
+      "correct_answer": null,
+      "time_limit_seconds": 60,
+      "points": 1000
+    },
+    {
+      "question_text": "Berapa nilai gcd(48, 18)?",
+      "type": "short_answer",
+      "difficulty": "medium",
+      "topic": "Math",
+      "correct_answer": "6",
+      "time_limit_seconds": 35,
+      "points": 1000
+    },
+    {
+      "question_text": "Jika array [4, 2, 7, 1, 3] diurutkan naik, elemen tengahnya adalah...",
+      "type": "short_answer",
+      "difficulty": "medium",
+      "topic": "Algorithms",
+      "correct_answer": "3",
+      "time_limit_seconds": 35,
+      "points": 1000
+    },
+    {
+      "question_text": "Berapa banyak edge pada complete graph tidak berarah dengan 5 node?",
+      "type": "short_answer",
+      "difficulty": "medium",
+      "topic": "Graph",
+      "correct_answer": "10",
+      "time_limit_seconds": 45,
+      "points": 1000
+    }
+  ]
+}

@@ -25,20 +25,40 @@ export default function useGameSocket() {
       useGameStore.getState().setLobbyParticipants(data.participants || []);
     });
 
-    // New question broadcast
+    // New question broadcast — transition to playing state
     channel.listen('.game.question', (data) => {
       useGameStore.getState().setCurrentQuestion(data);
     });
 
-    // Question ended / feedback
+    // Question ended — BUG-06 FIX:
+    // Show individual feedback first (setLastFeedback → gameState: 'feedback'),
+    // then scoreboard data is stored for the scoreboard screen.
+    // If participant didn't answer (still in 'playing' state), treat as wrong answer.
     channel.listen('.game.feedback', (data) => {
-      useGameStore.getState().setScoreboard(data.scoreboard || []);
+      const store = useGameStore.getState();
+      // Store the scoreboard data without changing gameState yet
+      store.setScoreboardOnly(data.scoreboard || []);
+      // If participant is still in playing state, they didn't answer in time — show timeout feedback
+      if (store.gameState === 'playing') {
+        store.setLastFeedback({ is_correct: false, points_earned: 0, total_score: store.score });
+      }
+      // If already in feedback state (answered), scoreboard is stored and ready
     });
 
-    // Game ended
+    // Game ended — show final scoreboard
     channel.listen('.game.end', (data) => {
       useGameStore.getState().setScoreboard(data.finalRanking || []);
       useGameStore.getState().setGameState('ended');
+    });
+
+    // BUG-07 FIX: Listen for participant elimination event.
+    // If the current participant is in the eliminated list, transition to 'eliminated' state.
+    channel.listen('.participant.eliminated', (data) => {
+      const currentParticipantId = useGameStore.getState().participantId;
+      const eliminatedIds = data.eliminated_ids || [];
+      if (currentParticipantId && eliminatedIds.includes(currentParticipantId)) {
+        useGameStore.getState().setGameState('eliminated');
+      }
     });
 
     return () => {
@@ -46,6 +66,7 @@ export default function useGameSocket() {
       channel.stopListening('.game.question');
       channel.stopListening('.game.feedback');
       channel.stopListening('.game.end');
+      channel.stopListening('.participant.eliminated');
     };
   }, [eventId]);
 
@@ -70,7 +91,7 @@ export default function useGameSocket() {
     }
   }, [participantId]);
 
-  // Join game room via REST API — now only needs PIN (user data from auth token)
+  // Join game room via REST API — only needs PIN (user data from auth token)
   const joinGameRoom = useCallback(async (pin) => {
     try {
       const res = await api.post('/participant/join', { pin });

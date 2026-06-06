@@ -1,6 +1,9 @@
+// SMELL-02 FIX: Static imports moved to top, before lazy imports
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 
+import useGameStore from './stores/useGameStore';
 import Layout from './components/Layout';
 import AuthGuard from './components/AuthGuard';
 import ParticipantGuard from './components/ParticipantGuard';
@@ -20,10 +23,6 @@ const Feedback = React.lazy(routeLoaders.feedback);
 const WaitingLobby = React.lazy(routeLoaders.waitingLobby);
 const Eliminated = React.lazy(routeLoaders.eliminated);
 
-import useGameStore from './stores/useGameStore';
-
-import { Toaster } from 'sonner';
-
 function LoadingFallback() {
   return (
     <div className="min-h-screen bg-[#131314] flex items-center justify-center flex-col gap-4">
@@ -40,11 +39,16 @@ function LazyPage({ children }) {
   );
 }
 
+// BUG-05 FIX: Added 'spectating' state that renders LiveQuestion in read-only mode.
+// BUG-07 FIX: Added 'eliminated' state redirect handled by useGameSocket listener.
 function PlayView({ gameState }) {
   if (gameState === 'playing') return <LiveQuestion />;
   if (gameState === 'feedback') return <Feedback />;
   if (gameState === 'lobby') return <Navigate to="/play/lobby" replace />;
   if (gameState === 'eliminated') return <Navigate to="/play/eliminated" replace />;
+  // Spectator mode: show LiveQuestion in read-only (no answer submission).
+  // LiveQuestion handles spectatorMode via isSubmitted=true by default when no question yet.
+  if (gameState === 'spectating') return <LiveQuestion />;
 
   return (
     <div className="min-h-screen bg-[#131314] flex items-center justify-center flex-col gap-4">

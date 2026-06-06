@@ -53,7 +53,10 @@ export default function Eliminated() {
           <div className="w-full flex flex-col gap-3">
             <button 
               onClick={() => {
-                useGameStore.getState().setGameState('playing');
+                // BUG-05 FIX: Use 'spectating' state instead of 'playing'.
+                // Forcing 'playing' would render LiveQuestion without question data, causing a crash.
+                // 'spectating' state renders LiveQuestion in read-only mode (no answer submission).
+                useGameStore.getState().setGameState('spectating');
                 navigate('/play');
               }}
               className="w-full bg-[#2a2a2b] hover:bg-[#353436] text-white border-2 border-[#4a4456] py-4 rounded-lg font-bold tracking-wider uppercase transition-colors flex items-center justify-center gap-3"
